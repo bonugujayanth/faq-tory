@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Login</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="top-row">
+        <h1>Sign in</h1>
+        <a class="link" href="signup.html">Create account</a>
+      </div>
+      <form id="loginForm">
+        <label>Email</label>
+        <input name="email" type="email" required />
+        <label>Password</label>
+        <input name="password" type="password" required />
+        <div style="height:12px"></div>
+        <button type="submit">Log in</button>
+      </form>
+      <p id="msg" class="muted footer"></p>
+    </div>
+  </div>
+  <script src="js/auth.js"></script>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = { email: form.email.value, password: form.password.value };
+      const res = await login(data);
+      const msg = document.getElementById('msg');
+      if (res.token) {
+        msg.textContent = 'Logged in. Redirecting...';
+        localStorage.setItem('token', res.token);
+        setTimeout(() => window.location.href = 'dashboard.html', 300);
+      } else {
+        msg.textContent = res.message || 'Login failed';
+      }
+    });
+  </script>
+</body>
+</html>

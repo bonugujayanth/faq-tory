@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="top-row">
+        <h1 id="welcome">Dashboard</h1>
+        <a class="link" href="login.html" id="small-login">Login</a>
+      </div>
+      <div id="content">
+        <p class="welcome muted">Loading your profile...</p>
+        <div id="adminPanel" class="admin-panel" style="display:none;margin-top:12px">
+          <h3>Admin Panel</h3>
+          <p>Only visible to admins</p>
+        </div>
+        <div style="margin-top:12px">
+          <button id="logout">Logout</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="js/auth.js"></script>
+  <script>
+    async function init() {
+      const token = localStorage.getItem('token');
+      if (!token) return window.location.href = 'login.html';
+      const me = await meReq(token);
+      if (!me || !me.user) {
+        localStorage.removeItem('token');
+        return window.location.href = 'login.html';
+      }
+      const u = me.user;
+      document.getElementById('welcome').textContent = `Welcome, ${u.name} (${u.role})`;
+      if (u.role === 'admin') document.getElementById('adminPanel').style.display = 'block';
+    }
+    document.getElementById('logout').addEventListener('click', () => { localStorage.removeItem('token'); window.location.href = 'login.html'; });
+    init();
+  </script>
+</body>
+</html>
