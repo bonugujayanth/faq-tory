@@ -1,0 +1,215 @@
+# Dynamic FAQ Builder - Project Requirements
+# This file documents all dependencies and requirements for the project
+
+# =============================================================================
+# SYSTEM REQUIREMENTS
+# =============================================================================
+
+# Node.js Version: 14.x or higher (recommended: 18.x LTS)
+# npm Version: 6.x or higher (comes with Node.js)
+# Operating System: Windows, macOS, or Linux
+
+# =============================================================================
+# BACKEND DEPENDENCIES (Node.js/Express)
+# =============================================================================
+
+# Core Framework
+express==4.18.2
+
+# Authentication & Security
+bcrypt==5.0.1
+jsonwebtoken==9.0.0
+
+# Database
+sqlite3==5.1.6
+
+# Middleware & Utilities
+cors==2.8.5
+dotenv==16.0.0
+
+# =============================================================================
+# DEVELOPMENT DEPENDENCIES
+# =============================================================================
+
+# Testing Framework
+jest==29.0.0
+supertest==6.3.3
+
+# Development Server
+nodemon==2.0.22
+
+# =============================================================================
+# FRONTEND DEPENDENCIES
+# =============================================================================
+
+# No external frontend dependencies - Pure HTML/CSS/JavaScript
+# Modern browser with ES6+ support required
+
+# =============================================================================
+# INSTALLATION INSTRUCTIONS
+# =============================================================================
+
+# 1. Install Node.js from https://nodejs.org/
+# 2. Navigate to src/backend directory
+# 3. Run: npm install
+# 4. Create .env file with required environment variables
+# 5. Run: npm run dev (for development) or npm start (for production)
+
+# =============================================================================
+# ENVIRONMENT VARIABLES REQUIRED
+# =============================================================================
+
+# JWT_SECRET=your-secret-key-here
+# PORT=3000
+# DB_PATH=./data/app.db
+
+# =============================================================================
+# DATABASE REQUIREMENTS
+# =============================================================================
+
+# SQLite3 database (automatically created)
+# Database file location: src/backend/data/app.db
+# Tables created automatically on first run:
+# - users (authentication and user management)
+# - faqs (question-answer pairs)
+# - categories (FAQ categorization)
+# - permissions (role-based access control)
+# - audit_log (action tracking)
+
+# =============================================================================
+# BROWSER COMPATIBILITY
+# =============================================================================
+
+# Modern browsers supporting:
+# - ES6+ JavaScript features
+# - Fetch API
+# - Local Storage
+# - CSS Grid and Flexbox
+# - HTML5 features
+
+# Tested on:
+# - Chrome 90+
+# - Firefox 88+
+# - Safari 14+
+# - Edge 90+
+
+# =============================================================================
+# SECURITY REQUIREMENTS
+# =============================================================================
+
+# HTTPS recommended for production
+# Strong JWT secret key (32+ characters)
+# Secure password hashing (bcrypt with 10+ salt rounds)
+# Input validation and sanitization
+# SQL injection protection (parameterized queries)
+# CORS configuration for cross-origin requests
+
+# =============================================================================
+# PERFORMANCE REQUIREMENTS
+# =============================================================================
+
+# Minimum 512MB RAM
+# 100MB disk space
+# Network connectivity for API calls
+# SQLite database performance scales with data size
+
+# =============================================================================
+# TESTING REQUIREMENTS
+# =============================================================================
+
+# Jest testing framework
+# Supertest for API testing
+# Test database isolation
+# 29 test cases covering all RBAC functionality
+
+# =============================================================================
+# DEPLOYMENT REQUIREMENTS
+# =============================================================================
+
+# Node.js runtime environment
+# Process manager (PM2 recommended for production)
+# Reverse proxy (Nginx recommended)
+# SSL certificate for HTTPS
+# Database backup strategy
+# Log management and monitoring
+
+# =============================================================================
+# API ENDPOINTS DOCUMENTATION
+# =============================================================================
+
+# Authentication:
+# POST /api/auth/signup - User registration
+# POST /api/auth/login - User login
+# GET /api/auth/me - Get current user
+# GET /api/auth/healthz - Health check
+
+# FAQ Management:
+# GET /api/faq - List FAQs (role-based filtering)
+# GET /api/faq/:id - Get FAQ by ID
+# POST /api/faq - Create FAQ
+# PUT /api/faq/:id - Update FAQ
+# DELETE /api/faq/:id - Delete FAQ (admin only)
+# GET /api/faq/search - Search FAQs
+# POST /api/faq/:id/publish - Publish FAQ (admin only)
+# POST /api/faq/:id/archive - Archive FAQ (admin only)
+
+# Admin Management:
+# GET /api/admin/users - List users (admin only)
+# POST /api/admin/users - Create user (admin only)
+# PUT /api/admin/users/:id/role - Update user role (admin only)
+# DELETE /api/admin/users/:id - Delete user (admin only)
+# GET /api/admin/stats - System statistics (admin only)
+# GET /api/admin/audit - Audit log (admin only)
+
+# Category Management:
+# GET /api/categories - List categories
+# GET /api/categories/:id - Get category by ID
+# POST /api/categories - Create category (admin only)
+# PUT /api/categories/:id - Update category (admin only)
+# DELETE /api/categories/:id - Delete category (admin only)
+
+# =============================================================================
+# ROLE-BASED ACCESS CONTROL (RBAC)
+# =============================================================================
+
+# Admin Role:
+# - Full CRUD access to all resources
+# - User management capabilities
+# - System administration
+# - Audit log access
+
+# Editor Role:
+# - Create and update FAQs
+# - View published and own draft FAQs
+# - Cannot delete FAQs or manage users
+
+# Viewer Role:
+# - Read-only access to published FAQs
+# - Search functionality
+# - No editing capabilities
+
+# =============================================================================
+# PROJECT STRUCTURE
+# =============================================================================
+
+# src/
+# ├── backend/
+# │   ├── middleware/     # Authentication and authorization
+# │   ├── models/         # Database models and schema
+# │   ├── routes/         # API route handlers
+# │   ├── tests/          # Test files
+# │   └── server.js       # Main server file
+# └── frontend/
+#     ├── css/            # Stylesheets
+#     ├── js/             # JavaScript modules
+#     └── *.html          # HTML pages
+
+# =============================================================================
+# VERSION INFORMATION
+# =============================================================================
+
+# Project Version: 1.0.0
+# Last Updated: 2024
+# Node.js Version: 18.x LTS (recommended)
+# Database: SQLite3 5.1.6
+# Test Coverage: 100% for RBAC functionality

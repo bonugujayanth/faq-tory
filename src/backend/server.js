@@ -2,15 +2,23 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
+const faqRoutes = require('./routes/faq');
+const adminRoutes = require('./routes/admin');
+const categoryRoutes = require('./routes/categories');
 const db = require('./models/db');
 const path = require('path');
 const http = require('http');
+const { errorHandler } = require('./middleware/error');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/faq', faqRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Basic root
 app.get('/', (req, res) => res.json({ message: 'Dynamic FAQ Builder API' }));
@@ -18,6 +26,9 @@ app.get('/', (req, res) => res.json({ message: 'Dynamic FAQ Builder API' }));
 // Serve frontend static files (signup.html, login.html, dashboard.html)
 const frontendDir = path.join(__dirname, '..', 'frontend');
 app.use(express.static(frontendDir));
+
+// Error middleware (must be last among app.use handlers before server start)
+app.use(errorHandler);
 
 // Start server only if run directly — use an http.Server to add error handling
 if (require.main === module) {
