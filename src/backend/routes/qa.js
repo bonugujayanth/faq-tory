@@ -45,7 +45,20 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Update Q/A entry
+// Get version history for a Q/A entry
+router.get('/:id/versions', authenticateToken, async (req, res) => {
+  try {
+    const versions = await QA.getVersionHistory(req.params.id);
+    res.json(versions);
+  } catch (err) {
+    if (err.message === 'Q/A entry not found') {
+      return res.status(404).json({ error: err.message });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update Q/A entry with version tracking
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { question, answer } = req.body;
@@ -61,6 +74,20 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.json(qa);
   } catch (err) {
     if (err.message === 'Q/A entry not found') {
+      return res.status(404).json({ error: err.message });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rollback Q/A entry to specific version
+router.post('/:id/rollback/:version', authenticateToken, async (req, res) => {
+  try {
+    const { id, version } = req.params;
+    const qa = await QA.rollbackToVersion(id, parseInt(version, 10));
+    res.json(qa);
+  } catch (err) {
+    if (err.message === 'Q/A entry not found' || err.message === 'Version not found') {
       return res.status(404).json({ error: err.message });
     }
     res.status(500).json({ error: err.message });
