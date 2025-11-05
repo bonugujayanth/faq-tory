@@ -25,7 +25,8 @@ router.post('/', authenticateToken, async (req, res) => {
 // Get all Q/A entries
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const entries = await QA.getAll();
+    const includeArchived = req.query.includeArchived === 'true';
+    const entries = await QA.getAll(includeArchived);
     res.json(entries);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -94,11 +95,41 @@ router.post('/:id/rollback/:version', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete Q/A entry
+// Archive Q/A entry (soft delete)
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
+    await QA.archive(req.params.id);
+    res.status(204).send();
+  } catch (err) {
+    if (err.message === 'Q/A entry not found') {
+      return res.status(404).json({ error: err.message });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Hard delete Q/A entry (admin only)
+router.delete('/:id/permanent', authenticateToken, async (req, res) => {
+  try {
+    // Only allow admins to permanently delete
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only administrators can permanently delete entries' });
+    }
     await QA.delete(req.params.id);
     res.status(204).send();
+  } catch (err) {
+    if (err.message === 'Q/A entry not found') {
+      return res.status(404).json({ error: err.message });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Restore archived Q/A entry
+router.post('/:id/restore', authenticateToken, async (req, res) => {
+  try {
+    const qa = await QA.restore(req.params.id);
+    res.json(qa);
   } catch (err) {
     if (err.message === 'Q/A entry not found') {
       return res.status(404).json({ error: err.message });

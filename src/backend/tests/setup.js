@@ -16,6 +16,7 @@ async function setupTestDatabase() {
               question TEXT NOT NULL,
               answer TEXT NOT NULL,
               current_version INTEGER DEFAULT 1,
+              archived BOOLEAN DEFAULT 0,
               created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
               updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
