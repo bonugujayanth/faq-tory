@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Management</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>User Management</h1>
+            <div id="userList">
+                Loading users...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+
+        // Fetch users
+        fetch('/api/admin/users', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => response.json())
+        .then(users => {
+            const userList = document.getElementById('userList');
+            if (users.length === 0) {
+                userList.innerHTML = '<p>No users found</p>';
+                return;
+            }
+
+            userList.innerHTML = `
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(user => `
+                            <tr>
+                                <td>${user.id}</td>
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                                <td>${user.role}</td>
+                                <td>${new Date(user.createdAt).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        })
+        .catch(error => {
+            document.getElementById('userList').innerHTML = `
+                <div class="error">
+                    Error loading users: ${error.message}
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html>
