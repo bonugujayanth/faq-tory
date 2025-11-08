@@ -22,11 +22,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          if [ -f package.json ]; then
-            npm ci
-          else
-            echo "No package.json found, skipping npm install"
-          fi
+          cd src/backend
+          npm ci
 
       - name: Run linting
         run: |
@@ -38,11 +35,8 @@ jobs:
 
       - name: Run tests
         run: |
-          if [ -f package.json ] && npm list --depth=0 | grep -q jest; then
-            npm test
-          else
-            echo "No tests configured, skipping..."
-          fi
+          cd src/backend
+          npm test
 
       - name: Build application
         run: |

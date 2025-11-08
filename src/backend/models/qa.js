@@ -1,5 +1,6 @@
 const db = require('./db');
 const QAVersion = require('./qa_version');
+const SearchIndex = require('./search_index');
 
 // Database initialization and migrations
 db.serialize(() => {
@@ -46,6 +47,10 @@ class QA {
 
           // Commit transaction
           await new Promise((res, rej) => db.run('COMMIT', err => err ? rej(err) : res()));
+          
+          // Add to search index
+          await SearchIndex.addDocument(qaEntry);
+          
           resolve(qaEntry);
         } catch (err) {
           // Rollback on error
@@ -139,7 +144,12 @@ class QA {
 
           // Commit transaction
           await new Promise((res, rej) => db.run('COMMIT', err => err ? rej(err) : res()));
-          resolve({ id, question, answer, current_version: newVersion });
+          
+          // Update search index
+          const updatedEntry = { id, question, answer, current_version: newVersion };
+          await SearchIndex.updateDocument(updatedEntry);
+          
+          resolve(updatedEntry);
         } catch (err) {
           // Rollback on error
           await new Promise((res) => db.run('ROLLBACK', res));
