@@ -36,7 +36,8 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "lunr": "^2.3.9",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.6",
+    "xss": "^1.0.14"
   },
   "devDependencies": {
     "jest": "^29.0.0",
