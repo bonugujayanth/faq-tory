@@ -1,6 +1,7 @@
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
 const app = require('../server');
+const db = require('../models/db');
+const { setupTestDatabase } = require('./setup');
 
 describe('QA API Tests', () => {
   const sampleQuestion = 'What is the meaning of life?';
@@ -8,10 +9,37 @@ describe('QA API Tests', () => {
   let token;
   let createdQA;
 
-  beforeAll(() => {
-    // Create a test token
-    token = jwt.sign({ id: 1, role: 'admin' }, process.env.JWT_SECRET || 'test-secret');
-  });
+  beforeAll(async () => {
+    // Setup test database
+    await setupTestDatabase();
+
+    // Register and login as admin
+    const adminUser = {
+      name: `Admin API ${Date.now()}`,
+      email: `admin_api_${Date.now()}@test.com`,
+      password: 'Admin@123'
+    };
+    
+    // Create admin user directly in database
+    const bcrypt = require('bcrypt');
+    const hashedPassword = await bcrypt.hash(adminUser.password, 10);
+    await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'admin')`,
+        [adminUser.name, adminUser.email, hashedPassword],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+    
+    const adminLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: adminUser.email, password: adminUser.password });
+    
+    token = adminLogin.body.token;
+  }, 10000);
 
   describe('Create and Read Operations', () => {
     it('should create a new Q/A entry with valid token', async () => {

@@ -1,8 +1,8 @@
 const request = require('supertest');
-const app = require('../app');
+const app = require('../server');
 const QA = require('../models/qa');
+const db = require('../models/db');
 const { setupTestDatabase } = require('./setup');
-const { generateToken } = require('../utils/auth');
 
 describe('Q/A System Tests', () => {
   let token;
@@ -12,8 +12,34 @@ describe('Q/A System Tests', () => {
 
   beforeEach(async () => {
     await setupTestDatabase();
-    token = generateToken({ id: 1, role: 'admin' });
-  });
+    
+    // Register and login as admin
+    const adminUser = {
+      name: `Admin System ${Date.now()}`,
+      email: `admin_system_${Date.now()}@test.com`,
+      password: 'Admin@123'
+    };
+    
+    // Create admin user directly in database
+    const bcrypt = require('bcrypt');
+    const hashedPassword = await bcrypt.hash(adminUser.password, 10);
+    await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'admin')`,
+        [adminUser.name, adminUser.email, hashedPassword],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+    
+    const adminLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: adminUser.email, password: adminUser.password });
+    
+    token = adminLogin.body.token;
+  }, 10000);
 
   describe('Complete Q/A Lifecycle', () => {
     it('should perform full lifecycle (create → update → archive → restore)', async () => {
