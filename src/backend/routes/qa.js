@@ -170,6 +170,104 @@ async function insertQADataRowByRow(data) {
   return results;
 }
 
+// DFBTR-172: Export Q/A data to CSV/JSON
+router.get('/export', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only administrators can export Q/A data' });
+    }
+
+    const format = req.query.format || 'json'; // default to JSON
+    const includeArchived = req.query.includeArchived === 'true';
+    
+    // DFBTR-173: Add filters (tags, date ranges, categories)
+    const filters = {
+      includeArchived,
+      tags: req.query.tags ? req.query.tags.split(',') : null,
+      startDate: req.query.startDate || null,
+      endDate: req.query.endDate || null,
+      category: req.query.category || null
+    };
+
+    // Get Q/A entries with filters
+    let entries = await getFilteredQAEntries(filters);
+
+    // DFBTR-174 & DFBTR-179: Implement CSV/JSON generation
+    if (format.toLowerCase() === 'csv') {
+      const csv = generateCSV(entries);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="qa-export-${Date.now()}.csv"`);
+      res.send(csv);
+    } else if (format.toLowerCase() === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="qa-export-${Date.now()}.json"`);
+      res.json(entries);
+    } else {
+      return res.status(400).json({ error: 'Invalid format. Use "csv" or "json"' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Helper function to get filtered Q/A entries (DFBTR-173)
+async function getFilteredQAEntries(filters) {
+  // Get all entries
+  let entries = await QA.getAll(filters.includeArchived);
+
+  // Apply date filters
+  if (filters.startDate) {
+    const startDate = new Date(filters.startDate);
+    entries = entries.filter(entry => new Date(entry.created_at) >= startDate);
+  }
+
+  if (filters.endDate) {
+    const endDate = new Date(filters.endDate);
+    entries = entries.filter(entry => new Date(entry.created_at) <= endDate);
+  }
+
+  // Note: Tags and categories would require additional database schema
+  // This is a placeholder for future implementation
+  if (filters.tags && filters.tags.length > 0) {
+    // Filter by tags (requires tags column in database)
+    // entries = entries.filter(entry => filters.tags.some(tag => entry.tags?.includes(tag)));
+  }
+
+  if (filters.category) {
+    // Filter by category (requires category column in database)
+    // entries = entries.filter(entry => entry.category === filters.category);
+  }
+
+  return entries;
+}
+
+// Helper function to generate CSV from Q/A entries (DFBTR-174)
+function generateCSV(entries) {
+  if (entries.length === 0) {
+    return 'question,answer\n';
+  }
+
+  // CSV header
+  let csv = 'id,question,answer,version,archived,created_at,updated_at\n';
+
+  // CSV rows
+  entries.forEach(entry => {
+    // Escape quotes and wrap fields in quotes
+    const id = entry.id;
+    const question = `"${(entry.question || '').replace(/"/g, '""')}"`;
+    const answer = `"${(entry.answer || '').replace(/"/g, '""')}"`;
+    const version = entry.current_version || 1;
+    const archived = entry.archived ? 'true' : 'false';
+    const created = entry.created_at || '';
+    const updated = entry.updated_at || '';
+
+    csv += `${id},${question},${answer},${version},${archived},${created},${updated}\n`;
+  });
+
+  return csv;
+}
+
 // Create Q/A entry
 router.post('/', authenticateToken, async (req, res) => {
   try {
