@@ -64,13 +64,33 @@ router.post('/import', authenticateToken, upload.single('file'), async (req, res
       // Clean up uploaded file
       fs.unlinkSync(filePath);
       
-      res.status(201).json({
-        message: 'Q/A data imported successfully',
-        imported: results.success,
-        failed: results.failed,
-        total: qaData.length,
-        errors: results.errors
-      });
+      // DFBTR-176, DFBTR-177, DFBTR-178: Enhanced validation report
+      const validationReport = {
+        message: results.failed > 0 
+          ? `Imported ${results.success} of ${qaData.length} entries. ${results.failed} failed.`
+          : 'Q/A data imported successfully',
+        summary: {
+          total: qaData.length,
+          imported: results.success,
+          failed: results.failed,
+          successRate: `${((results.success / qaData.length) * 100).toFixed(2)}%`
+        },
+        failures: results.errors.map(err => ({
+          row: err.row,
+          question: err.question,
+          errorCode: categorizeError(err.error),
+          errorMessage: err.error,
+          suggestion: getSuggestion(err.error)
+        })),
+        timestamp: new Date().toISOString(),
+        fileInfo: {
+          originalName: req.file.originalname,
+          format: fileExt,
+          size: req.file.size
+        }
+      };
+      
+      res.status(201).json(validationReport);
     } catch (err) {
       // Clean up uploaded file on error
       if (fs.existsSync(filePath)) {
@@ -168,6 +188,44 @@ async function insertQADataRowByRow(data) {
   }
   
   return results;
+}
+
+// DFBTR-178: Categorize errors with error codes
+function categorizeError(errorMessage) {
+  const errorMsg = errorMessage.toLowerCase();
+  
+  if (errorMsg.includes('required') || errorMsg.includes('missing')) {
+    return 'MISSING_FIELD';
+  } else if (errorMsg.includes('invalid') || errorMsg.includes('format')) {
+    return 'INVALID_FORMAT';
+  } else if (errorMsg.includes('duplicate') || errorMsg.includes('exists')) {
+    return 'DUPLICATE_ENTRY';
+  } else if (errorMsg.includes('too long') || errorMsg.includes('length')) {
+    return 'LENGTH_EXCEEDED';
+  } else if (errorMsg.includes('constraint') || errorMsg.includes('foreign key')) {
+    return 'CONSTRAINT_VIOLATION';
+  } else if (errorMsg.includes('database') || errorMsg.includes('sql')) {
+    return 'DATABASE_ERROR';
+  } else {
+    return 'UNKNOWN_ERROR';
+  }
+}
+
+// DFBTR-176: Provide suggestions based on error type
+function getSuggestion(errorMessage) {
+  const errorCode = categorizeError(errorMessage);
+  
+  const suggestions = {
+    'MISSING_FIELD': 'Ensure all required fields (question, answer) are present and not empty',
+    'INVALID_FORMAT': 'Check that the field values are in the correct format and data type',
+    'DUPLICATE_ENTRY': 'This Q/A pair may already exist. Check for duplicates in your file',
+    'LENGTH_EXCEEDED': 'Reduce the length of the question or answer text',
+    'CONSTRAINT_VIOLATION': 'Check that all referenced IDs exist and constraints are met',
+    'DATABASE_ERROR': 'Contact system administrator. There may be a database issue',
+    'UNKNOWN_ERROR': 'Review the error message and ensure data meets all requirements'
+  };
+  
+  return suggestions[errorCode] || 'Please review the error message for details';
 }
 
 // DFBTR-172: Export Q/A data to CSV/JSON

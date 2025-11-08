@@ -160,9 +160,9 @@ What is SQLite?,SQLite is a database engine`;
         .attach('file', csvPath);
 
       expect(response.status).toBe(201);
-      expect(response.body.imported).toBe(3);
-      expect(response.body.failed).toBe(0);
-      expect(response.body.total).toBe(3);
+      expect(response.body.summary.imported).toBe(3);
+      expect(response.body.summary.failed).toBe(0);
+      expect(response.body.summary.total).toBe(3);
       fs.unlinkSync(csvPath);
     });
 
@@ -180,9 +180,9 @@ What is SQLite?,SQLite is a database engine`;
         .attach('file', jsonPath);
 
       expect(response.status).toBe(201);
-      expect(response.body.imported).toBe(2);
-      expect(response.body.failed).toBe(0);
-      expect(response.body.total).toBe(2);
+      expect(response.body.summary.imported).toBe(2);
+      expect(response.body.summary.failed).toBe(0);
+      expect(response.body.summary.total).toBe(2);
       fs.unlinkSync(jsonPath);
     });
 
@@ -200,7 +200,7 @@ What is SQLite?,SQLite is a database engine`;
         .attach('file', jsonPath);
 
       expect(response.status).toBe(201);
-      expect(response.body.imported).toBe(2);
+      expect(response.body.summary.imported).toBe(2);
       fs.unlinkSync(jsonPath);
     });
 
@@ -296,9 +296,9 @@ Q5?,A5`;
         .attach('file', csvPath);
 
       expect(response.status).toBe(201);
-      expect(response.body.imported).toBe(5);
-      expect(response.body.failed).toBe(0);
-      expect(response.body.total).toBe(5);
+      expect(response.body.summary.imported).toBe(5);
+      expect(response.body.summary.failed).toBe(0);
+      expect(response.body.summary.total).toBe(5);
 
       // Verify data was inserted
       const getResponse = await request(app)
@@ -380,9 +380,9 @@ Q5?,A5`;
         .attach('file', csvPath);
 
       expect(response.status).toBe(201);
-      expect(response.body.imported).toBe(50);
-      expect(response.body.failed).toBe(0);
-      expect(response.body.total).toBe(50);
+      expect(response.body.summary.imported).toBe(50);
+      expect(response.body.summary.failed).toBe(0);
+      expect(response.body.summary.total).toBe(50);
       
       fs.unlinkSync(csvPath);
     }, 30000); // Increase timeout for large import
@@ -397,8 +397,8 @@ Q5?,A5`;
         .attach('file', csvPath);
 
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('errors');
-      expect(Array.isArray(response.body.errors)).toBe(true);
+      expect(response.body).toHaveProperty('failures');
+      expect(Array.isArray(response.body.failures)).toBe(true);
       
       fs.unlinkSync(csvPath);
     });
@@ -547,7 +547,7 @@ Q5?,A5`;
         .attach('file', csvPath);
 
       expect(response.status).toBe(201);
-      expect(response.body.imported).toBe(1);
+      expect(response.body.summary.imported).toBe(1);
       fs.unlinkSync(csvPath);
     });
 
@@ -565,7 +565,7 @@ Q5?,A5`;
         .attach('file', jsonPath);
 
       expect(response.status).toBe(201);
-      expect(response.body.imported).toBe(2);
+      expect(response.body.summary.imported).toBe(2);
       fs.unlinkSync(jsonPath);
     });
 

@@ -444,7 +444,7 @@ describe('Q/A Export API Tests', () => {
         .attach('file', tempFile);
 
       expect(importResponse.status).toBe(201);
-      expect(importResponse.body.imported).toBe(2);
+      expect(importResponse.body.summary.imported).toBe(2);
 
       // Cleanup
       fs.unlinkSync(tempFile);
