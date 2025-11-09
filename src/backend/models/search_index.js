@@ -7,10 +7,22 @@ class SearchIndex {
 
   static async initialize() {
     try {
-      // Get all Q/A entries
+      // Get all Q/A entries with their tags
       const entries = await new Promise((resolve, reject) => {
-        db.all('SELECT * FROM qa WHERE archived = 0', [], (err, rows) => {
+        const sql = `
+          SELECT qa.*, GROUP_CONCAT(t.name) as tags
+          FROM qa
+          LEFT JOIN qa_tags qt ON qt.qa_id = qa.id
+          LEFT JOIN tags t ON t.id = qt.tag_id
+          WHERE qa.archived = 0
+          GROUP BY qa.id
+        `;
+        db.all(sql, [], (err, rows) => {
           if (err) return reject(err);
+          // Convert tags string to array
+          rows.forEach(row => {
+            row.tags = row.tags ? row.tags.split(',') : [];
+          });
           resolve(rows);
         });
       });
@@ -100,17 +112,54 @@ class SearchIndex {
     }
   }
 
-  static async search(query) {
+  static async search(query, filters = {}) {
     try {
       if (!this.instance) {
         await this.initialize();
       }
 
       const results = this.instance.search(query);
-      return results.map(result => ({
+      let filteredResults = results.map(result => ({
         ...this.documents.get(result.ref),
         score: result.score
       }));
+
+      // Apply tag filter
+      if (filters.tags && filters.tags.length > 0) {
+        filteredResults = filteredResults.filter(result => {
+          return filters.tags.every(tag => result.tags.includes(tag));
+        });
+      }
+
+      // Apply date range filter for created_at
+      if (filters.createdAfter) {
+        const after = new Date(filters.createdAfter);
+        filteredResults = filteredResults.filter(result => 
+          new Date(result.created_at) >= after
+        );
+      }
+      if (filters.createdBefore) {
+        const before = new Date(filters.createdBefore);
+        filteredResults = filteredResults.filter(result => 
+          new Date(result.created_at) <= before
+        );
+      }
+
+      // Apply date range filter for updated_at
+      if (filters.updatedAfter) {
+        const after = new Date(filters.updatedAfter);
+        filteredResults = filteredResults.filter(result => 
+          new Date(result.updated_at) >= after
+        );
+      }
+      if (filters.updatedBefore) {
+        const before = new Date(filters.updatedBefore);
+        filteredResults = filteredResults.filter(result => 
+          new Date(result.updated_at) <= before
+        );
+      }
+
+      return filteredResults;
     } catch (err) {
       console.error('Search failed:', err);
       return [];
