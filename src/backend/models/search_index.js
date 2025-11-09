@@ -27,17 +27,58 @@ class SearchIndex {
         });
       });
 
-      // Build index
+      // Build index with BM25 ranking
       this.instance = lunr(function() {
-        this.field('question', { boost: 10 });
-        this.field('answer');
+        // Configure BM25 ranking parameters
+        // k1: Term frequency saturation (1.2-2.0 typical, higher = more term frequency impact)
+        // b: Field length normalization (0-1, higher = more length normalization)
+        this.k1(1.5);  // Balanced term frequency impact
+        this.b(0.75);  // Standard length normalization
+
+        // Fields with boosts and term processing
+        this.field('question', { 
+          boost: 10,  // Questions are more important
+          extractor: (doc) => {
+            return doc.question ? doc.question.toLowerCase() : '';
+          }
+        });
+        this.field('answer', { 
+          boost: 3,   // Answers are less important than questions
+          extractor: (doc) => {
+            return doc.answer ? doc.answer.toLowerCase() : '';
+          }
+        });
+        this.field('tags', {
+          boost: 5,   // Tags are moderately important
+          extractor: (doc) => {
+            return doc.tags ? doc.tags.join(' ').toLowerCase() : '';
+          }
+        });
+        
         this.ref('id');
 
+        // Pipeline functions for better text processing
+        this.pipeline.remove(lunr.stemmer);  // Remove default stemming
+        this.pipeline.add(
+          // Custom token processing
+          function(token) {
+            return token.update(function(str) {
+              return str.replace(/[^\w\s]/g, '').toLowerCase();
+            });
+          }
+        );
+
+        // Add documents with all metadata
         entries.forEach(entry => {
           this.add({
             id: entry.id,
             question: entry.question,
-            answer: entry.answer
+            answer: entry.answer,
+            tags: entry.tags,
+            metadata: {
+              created_at: entry.created_at,
+              updated_at: entry.updated_at
+            }
           });
         });
       });

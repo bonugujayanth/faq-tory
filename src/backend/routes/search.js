@@ -14,6 +14,7 @@ router.get('/health', async (req, res) => {
 // Search Q/A entries with filtering
 router.get('/search', async (req, res) => {
   try {
+    const startTime = Date.now();
     const { q, tags, createdAfter, createdBefore, updatedAfter, updatedBefore } = req.query;
     
     if (!q) {
@@ -42,7 +43,22 @@ router.get('/search', async (req, res) => {
       
       res.json({ 
         results: enhancedResults,
-        filters: filters // Return the applied filters for transparency
+        filters: filters, // Return the applied filters for transparency
+        metadata: {
+          engine: 'lunr.js',
+          algorithm: 'bm25',
+          parameters: {
+            k1: 1.5,  // Term frequency saturation
+            b: 0.75,  // Length normalization
+            boosts: {
+              question: 10,
+              answer: 3,
+              tags: 5
+            }
+          },
+          totalResults: enhancedResults.length,
+          executionTime: Date.now() - startTime
+        }
       });
     } catch (validationErr) {
       return res.status(400).json({ 
