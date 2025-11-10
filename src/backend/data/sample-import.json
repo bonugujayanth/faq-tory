@@ -1,0 +1,42 @@
+[
+  {
+    "question": "What is Node.js?",
+    "answer": "Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine that allows developers to run JavaScript on the server side."
+  },
+  {
+    "question": "What is Express.js?",
+    "answer": "Express.js is a minimal and flexible Node.js web application framework that provides a robust set of features for web and mobile applications."
+  },
+  {
+    "question": "What is SQLite?",
+    "answer": "SQLite is a C-language library that implements a small, fast, self-contained, high-reliability, full-featured SQL database engine."
+  },
+  {
+    "question": "What is JWT?",
+    "answer": "JWT (JSON Web Token) is a compact, URL-safe means of representing claims to be transferred between two parties for authentication and authorization."
+  },
+  {
+    "question": "What is CORS?",
+    "answer": "CORS (Cross-Origin Resource Sharing) is a security feature implemented by web browsers that allows or restricts web applications running at one origin to access resources from a different origin."
+  },
+  {
+    "question": "What is REST API?",
+    "answer": "REST API is an application programming interface that conforms to the constraints of REST architectural style, using HTTP requests to GET, PUT, POST and DELETE data."
+  },
+  {
+    "question": "What is Authentication?",
+    "answer": "Authentication is the process of verifying the identity of a user or system, typically through credentials like username and password."
+  },
+  {
+    "question": "What is Authorization?",
+    "answer": "Authorization is the process of determining what permissions an authenticated user has and what resources they can access."
+  },
+  {
+    "question": "What is Middleware?",
+    "answer": "Middleware functions are functions that have access to the request object, response object, and the next middleware function in the application's request-response cycle."
+  },
+  {
+    "question": "What is a Database Schema?",
+    "answer": "A database schema is the skeleton structure that represents the logical view of the entire database, defining how data is organized and how relationships are associated."
+  }
+]
