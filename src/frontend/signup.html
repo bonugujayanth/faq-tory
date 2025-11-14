@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - FAQ-tory</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>Create an account</h1>
+                <p>Join FAQ-tory to start managing your FAQs</p>
+            </div>
+
+            <form id="signupForm">
+                <div class="form-group">
+                    <label for="name">Full name</label>
+                    <input type="text" id="name" name="name" class="form-control" required placeholder="Enter your full name">
+                    <div class="error-message">Name is required</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email address</label>
+                    <input type="email" id="email" name="email" class="form-control" required placeholder="Enter your email">
+                    <div class="error-message">Please enter a valid email address</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" class="form-control" required placeholder="Create a password">
+                    <div class="error-message">Password must be at least 6 characters</div>
+                </div>
+
+                <button type="submit" class="auth-button" id="signupButton">
+                    Create account
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                Already have an account? <a href="login.html" class="auth-link">Sign in</a>
+            </div>
+            
+            <p id="msg" class="error-message" style="text-align: center; margin-top: 16px;"></p>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        const signupForm = document.getElementById('signupForm');
+        const signupButton = document.getElementById('signupButton');
+        const msg = document.getElementById('msg');
+
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const form = e.target;
+            const data = {
+                name: form.name.value,
+                email: form.email.value,
+                password: form.password.value
+            };
+            
+            signupButton.disabled = true;
+            signupButton.textContent = 'Creating account...';
+            msg.style.display = 'none';
+            
+            try {
+                const res = await signup(data);
+                if (res.ok) {
+                    msg.textContent = 'Account created successfully! Redirecting to login...';
+                    msg.style.color = 'var(--success)';
+                    msg.style.display = 'block';
+                    setTimeout(() => window.location.href = 'login.html', 1500);
+                } else {
+                    throw new Error(res.error || 'Signup failed');
+                }
+            } catch (error) {
+                msg.textContent = error.message;
+                msg.style.display = 'block';
+                signupButton.disabled = false;
+                signupButton.textContent = 'Create account';
+            }
+        });
+
+        // Add input validation
+        const nameInput = document.getElementById('name');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+
+        nameInput.addEventListener('input', validateName);
+        emailInput.addEventListener('input', validateEmail);
+        passwordInput.addEventListener('input', validatePassword);
+
+        function validateName() {
+            const nameGroup = nameInput.parentElement;
+            if (!nameInput.value.trim()) {
+                nameGroup.classList.add('error');
+            } else {
+                nameGroup.classList.remove('error');
+            }
+        }
+
+        function validateEmail() {
+            const emailGroup = emailInput.parentElement;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailInput.value || !emailRegex.test(emailInput.value)) {
+                emailGroup.classList.add('error');
+            } else {
+                emailGroup.classList.remove('error');
+            }
+        }
+
+        function validatePassword() {
+            const passwordGroup = passwordInput.parentElement;
+            if (!passwordInput.value || passwordInput.value.length < 6) {
+                passwordGroup.classList.add('error');
+            } else {
+                passwordGroup.classList.remove('error');
+            }
+        }
+    </script>
+</body>
+</html>
