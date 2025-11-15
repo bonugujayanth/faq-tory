@@ -1,0 +1,19 @@
+{
+  "name": "dynamic-faq-builder",
+  "version": "1.0.0",
+  "description": "Backend for Dynamic FAQ Builder project",
+  "main": "src/backend/server.js",
+  "scripts": {
+    "start": "node src/backend/server.js"
+  },
+  "keywords": [],
+  "author": "Ishika",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  }
+}

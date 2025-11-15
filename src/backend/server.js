@@ -1,26 +1,25 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
 
-// Initialize express app
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Routes imports
-const feedbackRoutes = require('./routes/feedback'); // ✅ Import the feedback route
+// Load feedback routes
+const feedbackRoutes = require("./routes/feedback");
+app.use("/api/feedback", feedbackRoutes);
 
-// Use routes
-app.use('/api/feedback', feedbackRoutes); // ✅ Register the route
+// Load ADMIN feedback routes
+const adminFeedbackRouter = require("./routes/adminFeedback");
+console.log("Admin feedback router loaded");
+app.use("/api/admin", adminFeedbackRouter);
 
-// Base route (for testing if server is alive)
-app.get('/', (req, res) => {
-  res.json({ message: 'Dynamic FAQ Builder backend running successfully 🎉' });
+app.get("/", (req, res) => {
+  res.json({ message: "Backend running 🎉" });
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
