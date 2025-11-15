@@ -15,11 +15,16 @@ try {
 }
 
 const app = require('../server');
+const db = require('../models/db');
+const { seedPermissions } = require('./setup');
+
+const waitForDB = () => new Promise((resolve) => {
+  setTimeout(resolve, 500);
+});
 
 afterAll((done) => {
   // Close sqlite handle and remove test DB
   try {
-    const db = require('../models/db');
     if (db && typeof db.close === 'function') {
       db.close(() => {
         try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
@@ -42,10 +47,12 @@ describe('RBAC System Tests', () => {
 
   // Setup test users
   beforeAll(async () => {
+    await waitForDB();
+    await seedPermissions();
     // Create admin user
     const adminRes = await request(app)
       .post('/api/auth/signup')
-      .send({ name: 'Admin User', email: 'admin@test.com', password: 'password' });
+      .send({ name: 'Admin User', email: 'admin@test.com', password: 'AdminPass123!' });
     
     // Update admin role
     const db = require('../models/db');
@@ -55,12 +62,12 @@ describe('RBAC System Tests', () => {
     
     adminToken = adminRes.body.user ? (await request(app)
       .post('/api/auth/login')
-      .send({ email: 'admin@test.com', password: 'password' })).body.token : null;
+      .send({ email: 'admin@test.com', password: 'AdminPass123!' })).body.token : null;
 
     // Create editor user
     const editorRes = await request(app)
       .post('/api/auth/signup')
-      .send({ name: 'Editor User', email: 'editor@test.com', password: 'password' });
+      .send({ name: 'Editor User', email: 'editor@test.com', password: 'EditorPass123!' });
     
     await new Promise((resolve) => {
       db.run('UPDATE users SET role = ? WHERE email = ?', ['editor', 'editor@test.com'], resolve);
@@ -68,12 +75,12 @@ describe('RBAC System Tests', () => {
     
     editorToken = (await request(app)
       .post('/api/auth/login')
-      .send({ email: 'editor@test.com', password: 'password' })).body.token;
+      .send({ email: 'editor@test.com', password: 'EditorPass123!' })).body.token;
 
     // Create viewer user
     const viewerRes = await request(app)
       .post('/api/auth/signup')
-      .send({ name: 'Viewer User', email: 'viewer@test.com', password: 'password' });
+      .send({ name: 'Viewer User', email: 'viewer@test.com', password: 'ViewerPass123!' });
     
     await new Promise((resolve) => {
       db.run('UPDATE users SET role = ? WHERE email = ?', ['viewer', 'viewer@test.com'], resolve);
@@ -81,7 +88,7 @@ describe('RBAC System Tests', () => {
     
     viewerToken = (await request(app)
       .post('/api/auth/login')
-      .send({ email: 'viewer@test.com', password: 'password' })).body.token;
+      .send({ email: 'viewer@test.com', password: 'ViewerPass123!' })).body.token;
 
     // Get user details
     adminUser = (await request(app).get('/api/auth/me').set('Authorization', `Bearer ${adminToken}`)).body.user;

@@ -1,25 +1,32 @@
 const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 
 // Ensure test DB is isolated
 process.env.DB_PATH = path.join(__dirname, '..', 'data', 'test.db');
 process.env.JWT_SECRET = 'testsecret';
 const dbPath = process.env.DB_PATH;
 
-// Remove any existing test DB before requiring the app so sqlite can create a fresh handle
+// Remove any existing test DB before requiring the app
 try {
   if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
 } catch (e) {
-  // If unlink fails (locked), tests will attempt again in beforeAll and report accordingly
+  // If unlink fails (locked), tests will attempt again
 }
 
 const app = require('../server');
+const db = require('../models/db');
+const { seedPermissions } = require('./setup');
+
+// Wait for database to initialize
+const waitForDB = () => new Promise((resolve) => {
+  setTimeout(resolve, 500);
+});
 
 afterAll((done) => {
   // Close sqlite handle and remove test DB
   try {
-    const db = require('../models/db');
     if (db && typeof db.close === 'function') {
       db.close(() => {
         try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
@@ -39,28 +46,30 @@ describe('Auth API', () => {
   let token;
   let shortLivedToken;
 
+  beforeAll(async () => {
+    await waitForDB();
+    await seedPermissions();
+  });
+
   test('signup valid -> 201', async () => {
-    const res = await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'pass' });
+    const res = await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'TestPass123!' });
     expect(res.statusCode).toBe(201);
     expect(res.body.user).toHaveProperty('id');
   });
 
   test('duplicate email -> 409', async () => {
-    const res = await request(app).post('/api/auth/signup').send({ name: 'Test2', email: 'a@a.com', password: 'pass' });
+    const res = await request(app).post('/api/auth/signup').send({ name: 'Test2', email: 'a@a.com', password: 'TestPass123!' });
     expect(res.statusCode).toBe(409);
   });
 
   test('login valid -> 200 + JWT', async () => {
-    const res = await request(app).post('/api/auth/login').send({ email: 'a@a.com', password: 'pass' });
+    const res = await request(app).post('/api/auth/login').send({ email: 'a@a.com', password: 'TestPass123!' });
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('token');
     token = res.body.token;
   });
 
   test('expired token -> 401', async () => {
-    // Forge a short-lived token for test
-    process.env.JWT_SECRET = 'testsecret';
-    const jwt = require('jsonwebtoken');
     const payload = { id: 999, name: 'X', email: 'x@x.com', role: 'viewer', jti: 'test-jti' };
     shortLivedToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 1 });
     await new Promise(r => setTimeout(r, 1100));
@@ -93,7 +102,6 @@ describe('Auth API', () => {
     const resReq = await request(app).post('/api/auth/request-reset').send({ email: 'a@a.com' });
     expect(resReq.statusCode).toBe(200);
     expect(resReq.body.ok).toBe(true);
-    // In dev/tests we return token for convenience
     expect(resReq.body.token).toBeDefined();
     const resReset = await request(app).post('/api/auth/reset').send({ token: resReq.body.token, newPassword: 'N3wPass!23' });
     expect(resReset.statusCode).toBe(200);
