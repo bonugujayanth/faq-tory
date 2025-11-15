@@ -19,29 +19,31 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          # point cache to backend lockfile since package.json lives in src/backend
+          cache-dependency-path: src/backend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install dependencies (backend)
         run: |
-          if [ -f package.json ]; then
-            npm ci
+          if [ -f src/backend/package.json ]; then
+            npm ci --prefix src/backend
           else
-            echo "No package.json found, skipping npm install"
+            echo "No backend package.json found, skipping npm install"
           fi
 
-      - name: Run linting
+      - name: Run linting (backend)
         run: |
-          if [ -f package.json ] && npm list --depth=0 | grep -q eslint; then
-            npm run lint
+          if [ -f src/backend/package.json ] && npm --prefix src/backend list --depth=0 | grep -q eslint; then
+            npm --prefix src/backend run lint
           else
-            echo "No linting configured, skipping..."
+            echo "No linting configured for backend, skipping..."
           fi
 
-      - name: Run tests with coverage threshold
+      - name: Run tests with coverage threshold (backend)
         run: |
-          if [ -f package.json ] && npm list --depth=0 | grep -q jest; then
-            npm run test:coverage
+          if [ -f src/backend/package.json ] && npm --prefix src/backend list --depth=0 | grep -q jest; then
+            npm --prefix src/backend run test:coverage
           else
-            echo "No tests configured, skipping..."
+            echo "No backend tests configured, skipping..."
           fi
 
       - name: Upload coverage artifact
@@ -50,9 +52,9 @@ jobs:
         with:
           name: coverage-report
           path: |
-            coverage/lcov.info
-            coverage/coverage-final.json
-            coverage/index.html
+            src/backend/coverage/lcov.info
+            src/backend/coverage/coverage-final.json
+            src/backend/coverage/index.html
 
       - name: Build application
         run: |
