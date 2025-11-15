@@ -32,21 +32,33 @@ app.use(express.static(frontendDir));
 // Error middleware (must be last among app.use handlers before server start)
 app.use(errorHandler);
 
-// Start server only if run directly — use an http.Server to add error handling
-if (require.main === module) {
-  const PORT = parseInt(process.env.PORT, 10) || 3000;
+// Extracted startup logic for testability & coverage of main-module branch
+function startServer(portValue) {
+  const PORT = parseInt(portValue, 10) || 3000;
   const server = http.createServer(app);
   server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
-
   server.on('error', (err) => {
     if (err && err.code === 'EADDRINUSE') {
       console.error(`Port ${PORT} is already in use. Another process is listening on this port.`);
       console.error('Options: stop the other process, or set PORT in your .env to a different port.');
-      process.exit(1);
+      // Avoid killing the test process so we can assert coverage
+      if (process.env.NODE_ENV !== 'test') {
+        process.exit(1);
+      }
+      return; // in test just return after logging
     }
     console.error('Server error:', err);
-    process.exit(1);
+    if (process.env.NODE_ENV !== 'test') {
+      process.exit(1);
+    }
   });
+  return server;
+}
+
+// Preserve original behavior when executed directly
+if (require.main === module) {
+  startServer(process.env.PORT);
 }
 
 module.exports = app;
+module.exports.startServer = startServer;

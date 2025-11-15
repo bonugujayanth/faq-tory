@@ -2,9 +2,9 @@ name: CI-CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, feature/**]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   build:
@@ -36,13 +36,23 @@ jobs:
             echo "No linting configured, skipping..."
           fi
 
-      - name: Run tests
+      - name: Run tests with coverage threshold
         run: |
           if [ -f package.json ] && npm list --depth=0 | grep -q jest; then
-            npm test
+            npm run test:coverage
           else
             echo "No tests configured, skipping..."
           fi
+
+      - name: Upload coverage artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage/lcov.info
+            coverage/coverage-final.json
+            coverage/index.html
 
       - name: Build application
         run: |

@@ -2,6 +2,8 @@ const QA = require('../models/qa');
 const QAVersion = require('../models/qa_version');
 const { setupTestDatabase } = require('./setup');
 
+const pause = (ms) => new Promise(res => setTimeout(res, ms));
+
 describe('QA Version Control Tests', () => {
   const sampleQuestion1 = 'What is Node.js?';
   const sampleAnswer1 = 'Node.js is a JavaScript runtime.';
@@ -31,9 +33,8 @@ describe('QA Version Control Tests', () => {
 
     it('should create new version (v2) when updating Q/A entry', async () => {
       const updatedEntry = await QA.update(qaEntry.id, sampleQuestion2, sampleAnswer2);
-      
+      await pause(30);
       expect(updatedEntry).toHaveProperty('current_version', 2);
-      
       const versions = await QA.getVersionHistory(qaEntry.id);
       expect(versions).toHaveLength(2);
       expect(versions[0]).toHaveProperty('version', 2);
@@ -42,7 +43,7 @@ describe('QA Version Control Tests', () => {
 
     it('should maintain version history when updating multiple times', async () => {
       await QA.update(qaEntry.id, sampleQuestion3, sampleAnswer3);
-      
+      await pause(30);
       const versions = await QA.getVersionHistory(qaEntry.id);
       expect(versions).toHaveLength(3);
       expect(versions.map(v => v.version)).toEqual([3, 2, 1]);
@@ -53,10 +54,9 @@ describe('QA Version Control Tests', () => {
   describe('Version Rollback', () => {
     it('should allow rollback to previous version', async () => {
       const rolledBack = await QA.rollbackToVersion(qaEntry.id, 2);
-      
+      await pause(30);
       expect(rolledBack).toHaveProperty('current_version', 2);
       expect(rolledBack).toHaveProperty('answer', sampleAnswer2);
-      
       const currentEntry = await QA.getById(qaEntry.id);
       expect(currentEntry).toHaveProperty('current_version', 2);
       expect(currentEntry).toHaveProperty('answer', sampleAnswer2);
@@ -64,7 +64,7 @@ describe('QA Version Control Tests', () => {
 
     it('should allow rollback to first version', async () => {
       const rolledBack = await QA.rollbackToVersion(qaEntry.id, 1);
-      
+      await pause(30);
       expect(rolledBack).toHaveProperty('current_version', 1);
       expect(rolledBack).toHaveProperty('answer', sampleAnswer1);
     });
@@ -79,7 +79,6 @@ describe('QA Version Control Tests', () => {
   describe('Version History', () => {
     it('should return all versions in descending order', async () => {
       const versions = await QA.getVersionHistory(qaEntry.id);
-      
       expect(versions).toHaveLength(3);
       expect(versions).toEqual(
         expect.arrayContaining([
@@ -92,9 +91,22 @@ describe('QA Version Control Tests', () => {
 
     it('should maintain version history after rollback', async () => {
       await QA.rollbackToVersion(qaEntry.id, 2);
+      await pause(30);
       const versions = await QA.getVersionHistory(qaEntry.id);
-      
       expect(versions).toHaveLength(3);
+    });
+  });
+
+  describe('Deletion & GetAll', () => {
+    it('should list entries with getAll', async () => {
+      const list = await QA.getAll();
+      expect(Array.isArray(list)).toBe(true);
+      expect(list.length).toBeGreaterThan(0);
+    });
+    it('should delete the entry and error for nonexistent delete', async () => {
+      const deleted = await QA.delete(qaEntry.id);
+      expect(deleted).toHaveProperty('id', qaEntry.id);
+      await expect(QA.delete(999999)).rejects.toThrow('Q/A entry not found');
     });
   });
 });
