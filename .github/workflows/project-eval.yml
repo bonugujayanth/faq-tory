@@ -5,8 +5,6 @@ on:
     branches: ["**"]
   pull_request:
     branches: ["**"]
-  workflow_dispatch:
-
 jobs:
   team-report:
     runs-on: ubuntu-latest
@@ -564,8 +562,8 @@ jobs:
       #     echo "✅ Found $MERGE_COUNT merge commits" >&2
       #     echo "" >&2
       #     echo "✅ Branch relationship detection complete" >&2
-      - name: Detect branch creators & relationships (Hybrid: Creator + Owner)
-              run: |
+      - name: "Detect branch creators & relationships (Hybrid: Creator + Owner)"
+        run: |
                 set -e
                 
                 echo "========================================" >&2
