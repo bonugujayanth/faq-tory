@@ -2,23 +2,41 @@ const db = require('./db');
 const QAVersion = require('./qa_version');
 
 // Database initialization and migrations
-db.serialize(() => {
-  // Drop existing table (for testing purposes)
-  db.run('DROP TABLE IF EXISTS qa');
-  
-  // Create Q/A table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS qa (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      question TEXT NOT NULL,
-      answer TEXT NOT NULL,
-      current_version INTEGER DEFAULT 1,
-      archived BOOLEAN DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-});
+// Only drop table in test environment
+if (process.env.NODE_ENV === 'test') {
+  db.serialize(() => {
+    // Drop existing table (for testing purposes)
+    db.run('DROP TABLE IF EXISTS qa');
+    
+    // Create Q/A table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS qa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        current_version INTEGER DEFAULT 1,
+        archived BOOLEAN DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  });
+} else {
+  // In production/development, just create table if not exists
+  db.serialize(() => {
+    db.run(`
+      CREATE TABLE IF NOT EXISTS qa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        current_version INTEGER DEFAULT 1,
+        archived BOOLEAN DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  });
+}
 
 class QA {
   // Create a new Q/A entry

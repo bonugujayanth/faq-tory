@@ -38,7 +38,9 @@ jobs:
 
       - name: Run tests
         working-directory: ./src/backend
-        run: npm test -- tests/qa.import.test.js tests/qa.export.test.js tests/qa.import.validation.test.js tests/auth.test.js --forceExit
+        env:
+          NODE_ENV: test
+        run: npm test -- --testPathPattern="(qa.import.test|qa.export.test|qa.import.validation.test|auth.test).js$" --forceExit --testEnvironment=node
 
       - name: Build application
         working-directory: ./src/backend

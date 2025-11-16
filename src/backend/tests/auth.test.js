@@ -2,6 +2,8 @@ const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
 
+// Ensure test environment
+process.env.NODE_ENV = 'test';
 // Ensure test DB is isolated
 process.env.DB_PATH = path.join(__dirname, '..', 'data', 'test.db');
 process.env.JWT_SECRET = 'testsecret';
