@@ -10,6 +10,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "lint": "eslint . --ext .js",
+    "build": "echo \"No build step for backend\"",
     "lint:fix": "eslint . --ext .js --fix",
     "stop": "node scripts/stop-port.js"
   },
