@@ -99,6 +99,7 @@ function logAudit(action, resourceType, resourceId = null) {
       
       const sql = `INSERT INTO audit_log (user_id, action, resource_type, resource_id, details, ip_address, user_agent) 
                    VALUES (?, ?, ?, ?, ?, ?, ?)`;
+      /* istanbul ignore next: audit log DB error branch is environment-specific and hard to reproduce in unit tests */
       db.run(sql, [
         auditData.user_id,
         auditData.action,

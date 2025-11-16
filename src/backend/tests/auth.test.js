@@ -40,18 +40,18 @@ describe('Auth API', () => {
   let shortLivedToken;
 
   test('signup valid -> 201', async () => {
-    const res = await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'pass' });
+    const res = await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'Passw0rd!' });
     expect(res.statusCode).toBe(201);
     expect(res.body.user).toHaveProperty('id');
   });
 
   test('duplicate email -> 409', async () => {
-    const res = await request(app).post('/api/auth/signup').send({ name: 'Test2', email: 'a@a.com', password: 'pass' });
+    const res = await request(app).post('/api/auth/signup').send({ name: 'Test2', email: 'a@a.com', password: 'Passw0rd!' });
     expect(res.statusCode).toBe(409);
   });
 
   test('login valid -> 200 + JWT', async () => {
-    const res = await request(app).post('/api/auth/login').send({ email: 'a@a.com', password: 'pass' });
+    const res = await request(app).post('/api/auth/login').send({ email: 'a@a.com', password: 'Passw0rd!' });
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('token');
     token = res.body.token;
