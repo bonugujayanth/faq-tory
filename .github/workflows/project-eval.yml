@@ -212,358 +212,672 @@ jobs:
             done
           fi
           
-      - name: Detect branch creators & relationships (GitHub Graph Logic)
-        run: |
-          set -e
+      # - name: Detect branch creators & relationships (GitHub Graph Logic)
+      #   run: |
+      #     set -e
           
-          echo "========================================" >&2
-          echo "DETECTING BRANCH RELATIONSHIPS (GITHUB GRAPH LOGIC)" >&2
-          echo "========================================" >&2
+      #     echo "========================================" >&2
+      #     echo "DETECTING BRANCH RELATIONSHIPS (GITHUB GRAPH LOGIC)" >&2
+      #     echo "========================================" >&2
           
-          # Define org owners
-          ORG_OWNERS=("v-s-v-i-s-h-w-a-s" "Akarsh-Hegde" "HarshPandya4gd")
+      #     # Define org owners
+      #     ORG_OWNERS=("v-s-v-i-s-h-w-a-s" "Akarsh-Hegde" "HarshPandya4gd")
           
-          # Get default branch
-          DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
-          echo "Default branch: $DEFAULT_BRANCH" >&2
-          echo "" >&2
+      #     # Get default branch
+      #     DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+      #     echo "Default branch: $DEFAULT_BRANCH" >&2
+      #     echo "" >&2
           
-          > branch_ownership.map
-          > branch_relationships.txt
-          > branch_merges.txt
+      #     > branch_ownership.map
+      #     > branch_relationships.txt
+      #     > branch_merges.txt
           
-          # Count total branches
-          TOTAL_BRANCHES=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | grep -v 'origin/HEAD' | wc -l)
-          echo "📊 Total branches in repository: $TOTAL_BRANCHES" >&2
-          echo "$TOTAL_BRANCHES" > repo_stats_branches.txt
+      #     # Count total branches
+      #     TOTAL_BRANCHES=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | grep -v 'origin/HEAD' | wc -l)
+      #     echo "📊 Total branches in repository: $TOTAL_BRANCHES" >&2
+      #     echo "$TOTAL_BRANCHES" > repo_stats_branches.txt
           
-          # Build list of all branches sorted by commit date (GitHub's ordering)
-          git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | grep -v 'origin/HEAD' > all_branches_sorted.txt
+      #     # Build list of all branches sorted by commit date (GitHub's ordering)
+      #     git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | grep -v 'origin/HEAD' > all_branches_sorted.txt
           
-          # STEP 1: Handle default branch first
-          echo "🏠 Processing default branch: $DEFAULT_BRANCH" >&2
-          INITIAL_COMMIT=$(git rev-list --max-parents=0 HEAD 2>/dev/null | head -1)
-          CREATOR=$(grep "^$INITIAL_COMMIT|" commit_to_github.map 2>/dev/null | cut -d'|' -f2 || echo "unknown")
-          echo "$DEFAULT_BRANCH|$CREATOR|$INITIAL_COMMIT|default|ROOT" >> branch_ownership.map
-          echo "$DEFAULT_BRANCH|ROOT|none|0|Initial repository branch" >> branch_relationships.txt
-          echo "  ✅ $DEFAULT_BRANCH → @$CREATOR (root branch)" >&2
-          echo "" >&2
+      #     # STEP 1: Handle default branch first
+      #     echo "🏠 Processing default branch: $DEFAULT_BRANCH" >&2
+      #     INITIAL_COMMIT=$(git rev-list --max-parents=0 HEAD 2>/dev/null | head -1)
+      #     CREATOR=$(grep "^$INITIAL_COMMIT|" commit_to_github.map 2>/dev/null | cut -d'|' -f2 || echo "unknown")
+      #     echo "$DEFAULT_BRANCH|$CREATOR|$INITIAL_COMMIT|default|ROOT" >> branch_ownership.map
+      #     echo "$DEFAULT_BRANCH|ROOT|none|0|Initial repository branch" >> branch_relationships.txt
+      #     echo "  ✅ $DEFAULT_BRANCH → @$CREATOR (root branch)" >&2
+      #     echo "" >&2
           
-          # STEP 2: Pre-check for branches with no commits at all
-          echo "🔍 Pre-checking branches for commit existence..." >&2
-          > "/tmp/branches_with_commits.txt"
-          while read branch; do
-            [ "$branch" = "origin/HEAD" ] && continue
-            BRANCH_NAME="${branch#origin/}"
-            [ "$BRANCH_NAME" = "$DEFAULT_BRANCH" ] && continue
+      #     # STEP 2: Pre-check for branches with no commits at all
+      #     echo "🔍 Pre-checking branches for commit existence..." >&2
+      #     > "/tmp/branches_with_commits.txt"
+      #     while read branch; do
+      #       [ "$branch" = "origin/HEAD" ] && continue
+      #       BRANCH_NAME="${branch#origin/}"
+      #       [ "$BRANCH_NAME" = "$DEFAULT_BRANCH" ] && continue
             
-            # Check if branch has ANY commits
-            COMMIT_COUNT=$(git rev-list --count "$branch" 2>/dev/null || echo "0")
-            if [ "$COMMIT_COUNT" -gt 0 ]; then
-              echo "$branch" >> "/tmp/branches_with_commits.txt"
-            else
-              # Branch exists but has no commits - mark as empty
-              echo "$BRANCH_NAME|unknown||empty|ORPHAN" >> branch_ownership.map
-              echo "$BRANCH_NAME|EMPTY|none|0|Branch has no commits" >> branch_relationships.txt
-              echo "  ⚠️  $BRANCH_NAME → EMPTY (no commits)" >&2
-            fi
-          done < all_branches_sorted.txt
+      #       # Check if branch has ANY commits
+      #       COMMIT_COUNT=$(git rev-list --count "$branch" 2>/dev/null || echo "0")
+      #       if [ "$COMMIT_COUNT" -gt 0 ]; then
+      #         echo "$branch" >> "/tmp/branches_with_commits.txt"
+      #       else
+      #         # Branch exists but has no commits - mark as empty
+      #         echo "$BRANCH_NAME|unknown||empty|ORPHAN" >> branch_ownership.map
+      #         echo "$BRANCH_NAME|EMPTY|none|0|Branch has no commits" >> branch_relationships.txt
+      #         echo "  ⚠️  $BRANCH_NAME → EMPTY (no commits)" >&2
+      #       fi
+      #     done < all_branches_sorted.txt
           
-          echo "" >&2
+      #     echo "" >&2
           
-          # STEP 3: Analyze all other branches using GitHub's merge-base logic
-          echo "🔍 Analyzing branch relationships..." >&2
-          PROCESSED=0
+      #     # STEP 3: Analyze all other branches using GitHub's merge-base logic
+      #     echo "🔍 Analyzing branch relationships..." >&2
+      #     PROCESSED=0
           
-          while read branch; do
-            [ "$branch" = "origin/HEAD" ] && continue
+      #     while read branch; do
+      #       [ "$branch" = "origin/HEAD" ] && continue
             
-            BRANCH_NAME="${branch#origin/}"
+      #       BRANCH_NAME="${branch#origin/}"
             
-            # Skip default branch (already processed)
-            [ "$BRANCH_NAME" = "$DEFAULT_BRANCH" ] && continue
+      #       # Skip default branch (already processed)
+      #       [ "$BRANCH_NAME" = "$DEFAULT_BRANCH" ] && continue
             
-            PROCESSED=$((PROCESSED + 1))
+      #       PROCESSED=$((PROCESSED + 1))
             
-            # Find parent branch using minimum merge-base distance (GitHub's method)
-            BEST_PARENT=""
-            BEST_DISTANCE=999999
-            BEST_MERGE_BASE=""
+      #       # Find parent branch using minimum merge-base distance (GitHub's method)
+      #       BEST_PARENT=""
+      #       BEST_DISTANCE=999999
+      #       BEST_MERGE_BASE=""
             
-            # Check all potential parent branches
-            while read candidate_branch; do
-              [ "$candidate_branch" = "origin/HEAD" ] && continue
-              CANDIDATE_NAME="${candidate_branch#origin/}"
+      #       # Check all potential parent branches
+      #       while read candidate_branch; do
+      #         [ "$candidate_branch" = "origin/HEAD" ] && continue
+      #         CANDIDATE_NAME="${candidate_branch#origin/}"
               
-              # Don't compare with self
-              [ "$CANDIDATE_NAME" = "$BRANCH_NAME" ] && continue
+      #         # Don't compare with self
+      #         [ "$CANDIDATE_NAME" = "$BRANCH_NAME" ] && continue
               
-              # Calculate merge-base
-              MERGE_BASE=$(git merge-base "$candidate_branch" "$branch" 2>/dev/null || echo "")
+      #         # Calculate merge-base
+      #         MERGE_BASE=$(git merge-base "$candidate_branch" "$branch" 2>/dev/null || echo "")
               
-              if [ -n "$MERGE_BASE" ]; then
-                # Calculate distance from merge-base to current branch
-                DISTANCE=$(git rev-list --count "$MERGE_BASE..$branch" 2>/dev/null || echo "999999")
+      #         if [ -n "$MERGE_BASE" ]; then
+      #           # Calculate distance from merge-base to current branch
+      #           DISTANCE=$(git rev-list --count "$MERGE_BASE..$branch" 2>/dev/null || echo "999999")
                 
-                # GitHub's logic: parent = branch with minimum distance to merge-base
-                if [ "$DISTANCE" -lt "$BEST_DISTANCE" ]; then
-                  BEST_PARENT="$CANDIDATE_NAME"
-                  BEST_DISTANCE="$DISTANCE"
-                  BEST_MERGE_BASE="$MERGE_BASE"
-                fi
-              fi
-            done < all_branches_sorted.txt
+      #           # GitHub's logic: parent = branch with minimum distance to merge-base
+      #           if [ "$DISTANCE" -lt "$BEST_DISTANCE" ]; then
+      #             BEST_PARENT="$CANDIDATE_NAME"
+      #             BEST_DISTANCE="$DISTANCE"
+      #             BEST_MERGE_BASE="$MERGE_BASE"
+      #           fi
+      #         fi
+      #       done < all_branches_sorted.txt
             
-            # Handle case where no parent found
-            if [ -z "$BEST_PARENT" ] || [ -z "$BEST_MERGE_BASE" ]; then
-              echo "$BRANCH_NAME|unknown||orphan|ORPHAN" >> branch_ownership.map
-              echo "$BRANCH_NAME|ORPHAN|none|0|No merge-base found with any branch" >> branch_relationships.txt
-              echo "  ❓ $BRANCH_NAME → ORPHAN (no merge-base found)" >&2
-              continue
-            fi
+      #       # Handle case where no parent found
+      #       if [ -z "$BEST_PARENT" ] || [ -z "$BEST_MERGE_BASE" ]; then
+      #         echo "$BRANCH_NAME|unknown||orphan|ORPHAN" >> branch_ownership.map
+      #         echo "$BRANCH_NAME|ORPHAN|none|0|No merge-base found with any branch" >> branch_relationships.txt
+      #         echo "  ❓ $BRANCH_NAME → ORPHAN (no merge-base found)" >&2
+      #         continue
+      #       fi
             
-            # STEP 3: Find branch creation commit (first commit after merge-base)
-            # This is the point of divergence from parent
-            DIVERGENCE_COMMITS=$(git rev-list --reverse "$BEST_MERGE_BASE..$branch" 2>/dev/null || echo "")
+      #       # STEP 3: Find branch creation commit (first commit after merge-base)
+      #       # This is the point of divergence from parent
+      #       DIVERGENCE_COMMITS=$(git rev-list --reverse "$BEST_MERGE_BASE..$branch" 2>/dev/null || echo "")
             
-            if [ -z "$DIVERGENCE_COMMITS" ]; then
-              echo "$BRANCH_NAME|unknown||empty|EMPTY" >> branch_ownership.map
-              echo "$BRANCH_NAME|EMPTY|$BEST_PARENT|0|Branch has no unique commits" >> branch_relationships.txt
-              echo "  ⚠️  $BRANCH_NAME → EMPTY (parent: $BEST_PARENT)" >&2
-              continue
-            fi
+      #       if [ -z "$DIVERGENCE_COMMITS" ]; then
+      #         echo "$BRANCH_NAME|unknown||empty|EMPTY" >> branch_ownership.map
+      #         echo "$BRANCH_NAME|EMPTY|$BEST_PARENT|0|Branch has no unique commits" >> branch_relationships.txt
+      #         echo "  ⚠️  $BRANCH_NAME → EMPTY (parent: $BEST_PARENT)" >&2
+      #         continue
+      #       fi
             
-            # STEP 4: Find branch creator using patch-id for cherry-pick detection
-            BRANCH_CREATOR=""
-            CREATOR_COMMIT=""
+      #       # STEP 4: Find branch creator using patch-id for cherry-pick detection
+      #       BRANCH_CREATOR=""
+      #       CREATOR_COMMIT=""
             
-            # Sanitize branch name for use in file paths (replace / with _)
-            SAFE_BRANCH_NAME=$(echo "$BRANCH_NAME" | tr '/' '_' | tr ' ' '_')
+      #       # Sanitize branch name for use in file paths (replace / with _)
+      #       SAFE_BRANCH_NAME=$(echo "$BRANCH_NAME" | tr '/' '_' | tr ' ' '_')
             
-            # Build patch-id map for parent branch (for cherry-pick detection)
-            > "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
-            git log "origin/$BEST_PARENT" --format='%H' 2>/dev/null | while read parent_commit; do
-              PATCH_ID=$(git show "$parent_commit" 2>/dev/null | git patch-id --stable 2>/dev/null | cut -d' ' -f1 || echo "")
-              if [ -n "$PATCH_ID" ]; then
-                echo "$PATCH_ID|$parent_commit" >> "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
-              fi
-            done
+      #       # Build patch-id map for parent branch (for cherry-pick detection)
+      #       > "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
+      #       git log "origin/$BEST_PARENT" --format='%H' 2>/dev/null | while read parent_commit; do
+      #         PATCH_ID=$(git show "$parent_commit" 2>/dev/null | git patch-id --stable 2>/dev/null | cut -d' ' -f1 || echo "")
+      #         if [ -n "$PATCH_ID" ]; then
+      #           echo "$PATCH_ID|$parent_commit" >> "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
+      #         fi
+      #       done
             
-            # Strategy: Try multiple passes with decreasing strictness
-            # Pass 1: Non-org, non-cherry-picked commits
-            # Pass 2: Non-org commits (allow cherry-picks)
-            # Pass 3: Any commit (including org owners)
-            # Pass 4: Use most frequent contributor
+      #       # Strategy: Try multiple passes with decreasing strictness
+      #       # Pass 1: Non-org, non-cherry-picked commits
+      #       # Pass 2: Non-org commits (allow cherry-picks)
+      #       # Pass 3: Any commit (including org owners)
+      #       # Pass 4: Use most frequent contributor
             
-            # PASS 1: Find first non-org, non-cherry-picked commit
-            echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
-              [ -z "$commit_hash" ] && continue
-              [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
+      #       # PASS 1: Find first non-org, non-cherry-picked commit
+      #       echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
+      #         [ -z "$commit_hash" ] && continue
+      #         [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
               
-              # Get commit info
-              COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
-              GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
+      #         # Get commit info
+      #         COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
+      #         GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
               
-              # Skip unknown
-              [ "$GH_USER" = "unknown" ] && continue
+      #         # Skip unknown
+      #         [ "$GH_USER" = "unknown" ] && continue
               
-              # Filter 1: Skip org owners
-              IS_ORG=false
-              for org_owner in "${ORG_OWNERS[@]}"; do
-                if [ "$GH_USER" = "$org_owner" ]; then
-                  IS_ORG=true
-                  break
-                fi
-              done
+      #         # Filter 1: Skip org owners
+      #         IS_ORG=false
+      #         for org_owner in "${ORG_OWNERS[@]}"; do
+      #           if [ "$GH_USER" = "$org_owner" ]; then
+      #             IS_ORG=true
+      #             break
+      #           fi
+      #         done
               
-              [ "$IS_ORG" = "true" ] && continue
+      #         [ "$IS_ORG" = "true" ] && continue
               
-              # Filter 2: Skip cherry-picked commits using patch-id
-              COMMIT_PATCH_ID=$(git show "$commit_hash" 2>/dev/null | git patch-id --stable 2>/dev/null | cut -d' ' -f1 || echo "")
-              IS_CHERRY_PICK=false
+      #         # Filter 2: Skip cherry-picked commits using patch-id
+      #         COMMIT_PATCH_ID=$(git show "$commit_hash" 2>/dev/null | git patch-id --stable 2>/dev/null | cut -d' ' -f1 || echo "")
+      #         IS_CHERRY_PICK=false
               
-              if [ -n "$COMMIT_PATCH_ID" ] && grep -q "^$COMMIT_PATCH_ID|" "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt" 2>/dev/null; then
-                IS_CHERRY_PICK=true
-              fi
+      #         if [ -n "$COMMIT_PATCH_ID" ] && grep -q "^$COMMIT_PATCH_ID|" "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt" 2>/dev/null; then
+      #           IS_CHERRY_PICK=true
+      #         fi
               
-              [ "$IS_CHERRY_PICK" = "true" ] && continue
+      #         [ "$IS_CHERRY_PICK" = "true" ] && continue
               
-              # This is the branch creator!
-              echo "$GH_USER|$commit_hash|pass1" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
-            done
+      #         # This is the branch creator!
+      #         echo "$GH_USER|$commit_hash|pass1" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+      #       done
             
-            # PASS 2: If no creator found, try non-org commits (allow cherry-picks)
-            if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
-              echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
-                [ -z "$commit_hash" ] && continue
-                [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
+      #       # PASS 2: If no creator found, try non-org commits (allow cherry-picks)
+      #       if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+      #         echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
+      #           [ -z "$commit_hash" ] && continue
+      #           [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
                 
-                COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
-                GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
+      #           COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
+      #           GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
                 
-                [ "$GH_USER" = "unknown" ] && continue
+      #           [ "$GH_USER" = "unknown" ] && continue
                 
-                # Skip org owners
-                IS_ORG=false
-                for org_owner in "${ORG_OWNERS[@]}"; do
-                  if [ "$GH_USER" = "$org_owner" ]; then
-                    IS_ORG=true
-                    break
-                  fi
-                done
+      #           # Skip org owners
+      #           IS_ORG=false
+      #           for org_owner in "${ORG_OWNERS[@]}"; do
+      #             if [ "$GH_USER" = "$org_owner" ]; then
+      #               IS_ORG=true
+      #               break
+      #             fi
+      #           done
                 
-                [ "$IS_ORG" = "true" ] && continue
+      #           [ "$IS_ORG" = "true" ] && continue
                 
-                # Accept this commit even if cherry-picked
-                echo "$GH_USER|$commit_hash|pass2" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
-              done
-            fi
+      #           # Accept this commit even if cherry-picked
+      #           echo "$GH_USER|$commit_hash|pass2" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+      #         done
+      #       fi
             
-            # PASS 3: If still no creator, try ANY commit (including org owners, but not unknown)
-            if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
-              echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
-                [ -z "$commit_hash" ] && continue
-                [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
+      #       # PASS 3: If still no creator, try ANY commit (including org owners, but not unknown)
+      #       if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+      #         echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
+      #           [ -z "$commit_hash" ] && continue
+      #           [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
                 
-                COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
-                GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
+      #           COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
+      #           GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
                 
-                [ "$GH_USER" = "unknown" ] && continue
+      #           [ "$GH_USER" = "unknown" ] && continue
                 
-                # Accept any known user
-                echo "$GH_USER|$commit_hash|pass3" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
-              done
-            fi
+      #           # Accept any known user
+      #           echo "$GH_USER|$commit_hash|pass3" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+      #         done
+      #       fi
             
-            # PASS 4: If STILL no creator, use most frequent contributor
-            if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
-              MOST_FREQUENT=$(git log "origin/$BRANCH_NAME" --format='%H' 2>/dev/null | while read ch; do
-                grep "^$ch|" commit_to_github.map 2>/dev/null | cut -d'|' -f2
-              done | grep -v "^unknown$" | sort | uniq -c | sort -rn | head -1 | awk '{print $2}')
+      #       # PASS 4: If STILL no creator, use most frequent contributor
+      #       if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+      #         MOST_FREQUENT=$(git log "origin/$BRANCH_NAME" --format='%H' 2>/dev/null | while read ch; do
+      #           grep "^$ch|" commit_to_github.map 2>/dev/null | cut -d'|' -f2
+      #         done | grep -v "^unknown$" | sort | uniq -c | sort -rn | head -1 | awk '{print $2}')
               
-              if [ -n "$MOST_FREQUENT" ]; then
-                FIRST_COMMIT=$(echo "$DIVERGENCE_COMMITS" | head -1)
-                echo "$MOST_FREQUENT|$FIRST_COMMIT|pass4" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
-              fi
-            fi
+      #         if [ -n "$MOST_FREQUENT" ]; then
+      #           FIRST_COMMIT=$(echo "$DIVERGENCE_COMMITS" | head -1)
+      #           echo "$MOST_FREQUENT|$FIRST_COMMIT|pass4" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+      #         fi
+      #       fi
             
-            # Read the result
-            if [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
-              IFS='|' read BRANCH_CREATOR CREATOR_COMMIT PASS_NUM < "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+      #       # Read the result
+      #       if [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+      #         IFS='|' read BRANCH_CREATOR CREATOR_COMMIT PASS_NUM < "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
               
-              echo "$BRANCH_NAME|$BRANCH_CREATOR|$CREATOR_COMMIT|detected|$BEST_PARENT" >> branch_ownership.map
-              echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|$BEST_DISTANCE|Branched from $BEST_PARENT ($BEST_DISTANCE commits ahead)" >> branch_relationships.txt
-              echo "  🌿 $BRANCH_NAME → @$BRANCH_CREATOR (parent: $BEST_PARENT, distance: $BEST_DISTANCE, $PASS_NUM)" >&2
-            else
-              # Absolute fallback
-              echo "$BRANCH_NAME|unknown||filtered|$BEST_PARENT" >> branch_ownership.map
-              echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|$BEST_DISTANCE|No identifiable creator found" >> branch_relationships.txt
-              echo "  ⚠️  $BRANCH_NAME → unknown (parent: $BEST_PARENT, all passes failed)" >&2
-            fi
+      #         echo "$BRANCH_NAME|$BRANCH_CREATOR|$CREATOR_COMMIT|detected|$BEST_PARENT" >> branch_ownership.map
+      #         echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|$BEST_DISTANCE|Branched from $BEST_PARENT ($BEST_DISTANCE commits ahead)" >> branch_relationships.txt
+      #         echo "  🌿 $BRANCH_NAME → @$BRANCH_CREATOR (parent: $BEST_PARENT, distance: $BEST_DISTANCE, $PASS_NUM)" >&2
+      #       else
+      #         # Absolute fallback
+      #         echo "$BRANCH_NAME|unknown||filtered|$BEST_PARENT" >> branch_ownership.map
+      #         echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|$BEST_DISTANCE|No identifiable creator found" >> branch_relationships.txt
+      #         echo "  ⚠️  $BRANCH_NAME → unknown (parent: $BEST_PARENT, all passes failed)" >&2
+      #       fi
             
-            # Clean up temp files
-            rm -f "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
-            rm -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+      #       # Clean up temp files
+      #       rm -f "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
+      #       rm -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
             
-            # Progress indicator
-            if [ $((PROCESSED % 5)) -eq 0 ]; then
-              echo "  ⏳ Processed $PROCESSED branches..." >&2
-            fi
-          done < "/tmp/branches_with_commits.txt"
+      #       # Progress indicator
+      #       if [ $((PROCESSED % 5)) -eq 0 ]; then
+      #         echo "  ⏳ Processed $PROCESSED branches..." >&2
+      #       fi
+      #     done < "/tmp/branches_with_commits.txt"
           
-          echo "" >&2
-          echo "✅ Branch analysis complete ($PROCESSED branches)" >&2
+      #     echo "" >&2
+      #     echo "✅ Branch analysis complete ($PROCESSED branches)" >&2
           
-          # STEP 5.5: Final pass - use GitHub API to get branch creators for remaining unknowns
-          echo "" >&2
-          echo "🔍 Using GitHub API for remaining unknown branches..." >&2
+      #     # STEP 5.5: Final pass - use GitHub API to get branch creators for remaining unknowns
+      #     echo "" >&2
+      #     echo "🔍 Using GitHub API for remaining unknown branches..." >&2
           
-          UNKNOWN_COUNT=$(grep "|unknown|" branch_ownership.map 2>/dev/null | wc -l || echo "0")
-          if [ "$UNKNOWN_COUNT" -gt 0 ]; then
-            echo "  Found $UNKNOWN_COUNT unknown branches, checking GitHub API..." >&2
+      #     UNKNOWN_COUNT=$(grep "|unknown|" branch_ownership.map 2>/dev/null | wc -l || echo "0")
+      #     if [ "$UNKNOWN_COUNT" -gt 0 ]; then
+      #       echo "  Found $UNKNOWN_COUNT unknown branches, checking GitHub API..." >&2
             
-            grep "|unknown|" branch_ownership.map 2>/dev/null | cut -d'|' -f1 | while read unknown_branch; do
-              # Get the branch creator from GitHub API (who created the ref)
-              BRANCH_CREATOR=$(gh api "repos/${{ github.repository }}/git/refs/heads/$unknown_branch" 2>/dev/null | \
-                jq -r '.object.sha' 2>/dev/null | while read sha; do
-                  grep "^$sha|" commit_to_github.map 2>/dev/null | cut -d'|' -f2 | head -1
-                done || echo "")
+      #       grep "|unknown|" branch_ownership.map 2>/dev/null | cut -d'|' -f1 | while read unknown_branch; do
+      #         # Get the branch creator from GitHub API (who created the ref)
+      #         BRANCH_CREATOR=$(gh api "repos/${{ github.repository }}/git/refs/heads/$unknown_branch" 2>/dev/null | \
+      #           jq -r '.object.sha' 2>/dev/null | while read sha; do
+      #             grep "^$sha|" commit_to_github.map 2>/dev/null | cut -d'|' -f2 | head -1
+      #           done || echo "")
               
-              if [ -z "$BRANCH_CREATOR" ] || [ "$BRANCH_CREATOR" = "unknown" ]; then
-                # Try getting ALL commits on the branch and find most frequent contributor
-                BRANCH_CREATOR=$(git log "origin/$unknown_branch" --format='%H' 2>/dev/null | while read ch; do
-                  grep "^$ch|" commit_to_github.map 2>/dev/null | cut -d'|' -f2
-                done | grep -v "^unknown$" | grep -v "^$" | sort | uniq -c | sort -rn | head -1 | awk '{print $2}' || echo "")
-              fi
+      #         if [ -z "$BRANCH_CREATOR" ] || [ "$BRANCH_CREATOR" = "unknown" ]; then
+      #           # Try getting ALL commits on the branch and find most frequent contributor
+      #           BRANCH_CREATOR=$(git log "origin/$unknown_branch" --format='%H' 2>/dev/null | while read ch; do
+      #             grep "^$ch|" commit_to_github.map 2>/dev/null | cut -d'|' -f2
+      #           done | grep -v "^unknown$" | grep -v "^$" | sort | uniq -c | sort -rn | head -1 | awk '{print $2}' || echo "")
+      #         fi
               
-              if [ -n "$BRANCH_CREATOR" ] && [ "$BRANCH_CREATOR" != "unknown" ]; then
-                # Update the branch ownership map
-                PARENT_INFO=$(grep "^$unknown_branch|" branch_ownership.map | cut -d'|' -f5)
-                FIRST_COMMIT=$(git log "origin/$unknown_branch" --format='%H' 2>/dev/null | tail -1 || echo "")
+      #         if [ -n "$BRANCH_CREATOR" ] && [ "$BRANCH_CREATOR" != "unknown" ]; then
+      #           # Update the branch ownership map
+      #           PARENT_INFO=$(grep "^$unknown_branch|" branch_ownership.map | cut -d'|' -f5)
+      #           FIRST_COMMIT=$(git log "origin/$unknown_branch" --format='%H' 2>/dev/null | tail -1 || echo "")
                 
-                # Remove old entry
-                grep -v "^$unknown_branch|" branch_ownership.map > "/tmp/branch_ownership_temp.map"
-                mv "/tmp/branch_ownership_temp.map" branch_ownership.map
+      #           # Remove old entry
+      #           grep -v "^$unknown_branch|" branch_ownership.map > "/tmp/branch_ownership_temp.map"
+      #           mv "/tmp/branch_ownership_temp.map" branch_ownership.map
                 
-                # Add new entry with discovered creator
-                echo "$unknown_branch|$BRANCH_CREATOR|$FIRST_COMMIT|api|$PARENT_INFO" >> branch_ownership.map
-                echo "  ✅ Updated $unknown_branch → @$BRANCH_CREATOR (via API)" >&2
-              fi
-            done
+      #           # Add new entry with discovered creator
+      #           echo "$unknown_branch|$BRANCH_CREATOR|$FIRST_COMMIT|api|$PARENT_INFO" >> branch_ownership.map
+      #           echo "  ✅ Updated $unknown_branch → @$BRANCH_CREATOR (via API)" >&2
+      #         fi
+      #       done
             
-            REMAINING_UNKNOWN=$(grep "|unknown|" branch_ownership.map 2>/dev/null | wc -l || echo "0")
-            echo "  ✅ Resolved $((UNKNOWN_COUNT - REMAINING_UNKNOWN)) unknowns, $REMAINING_UNKNOWN remain" >&2
-          fi
+      #       REMAINING_UNKNOWN=$(grep "|unknown|" branch_ownership.map 2>/dev/null | wc -l || echo "0")
+      #       echo "  ✅ Resolved $((UNKNOWN_COUNT - REMAINING_UNKNOWN)) unknowns, $REMAINING_UNKNOWN remain" >&2
+      #     fi
           
-          # STEP 6: Detect merge commits (GitHub graph merge lines)
-          echo "" >&2
-          echo "🔀 Detecting merge commits..." >&2
+      #     # STEP 6: Detect merge commits (GitHub graph merge lines)
+      #     echo "" >&2
+      #     echo "🔀 Detecting merge commits..." >&2
           
-          MERGE_COUNT=0
-          git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | while read branch; do
-            [ "$branch" = "origin/HEAD" ] && continue
+      #     MERGE_COUNT=0
+      #     git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | while read branch; do
+      #       [ "$branch" = "origin/HEAD" ] && continue
             
-            BRANCH_NAME="${branch#origin/}"
+      #       BRANCH_NAME="${branch#origin/}"
             
-            # Find merge commits (commits with 2+ parents)
-            git log "$branch" --format='%H|%P|%s|%an|%ae|%ci' --merges 2>/dev/null | while IFS='|' read hash parents subject author email date; do
-              # Count parents
-              PARENT_COUNT=$(echo "$parents" | wc -w)
+      #       # Find merge commits (commits with 2+ parents)
+      #       git log "$branch" --format='%H|%P|%s|%an|%ae|%ci' --merges 2>/dev/null | while IFS='|' read hash parents subject author email date; do
+      #         # Count parents
+      #         PARENT_COUNT=$(echo "$parents" | wc -w)
               
-              if [ "$PARENT_COUNT" -ge 2 ]; then
-                # This is a merge commit
-                FIRST_PARENT=$(echo "$parents" | cut -d' ' -f1)
-                SECOND_PARENT=$(echo "$parents" | cut -d' ' -f2)
+      #         if [ "$PARENT_COUNT" -ge 2 ]; then
+      #           # This is a merge commit
+      #           FIRST_PARENT=$(echo "$parents" | cut -d' ' -f1)
+      #           SECOND_PARENT=$(echo "$parents" | cut -d' ' -f2)
                 
-                # Find which branch the second parent belongs to
-                MERGED_BRANCH="unknown"
-                git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | while read check_branch; do
-                  [ "$check_branch" = "origin/HEAD" ] && continue
+      #           # Find which branch the second parent belongs to
+      #           MERGED_BRANCH="unknown"
+      #           git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | while read check_branch; do
+      #             [ "$check_branch" = "origin/HEAD" ] && continue
                   
-                  if git merge-base --is-ancestor "$SECOND_PARENT" "$check_branch" 2>/dev/null; then
-                    CHECK_NAME="${check_branch#origin/}"
-                    echo "$CHECK_NAME" > "/tmp/merged_branch_${hash}.txt"
-                    break
+      #             if git merge-base --is-ancestor "$SECOND_PARENT" "$check_branch" 2>/dev/null; then
+      #               CHECK_NAME="${check_branch#origin/}"
+      #               echo "$CHECK_NAME" > "/tmp/merged_branch_${hash}.txt"
+      #               break
+      #             fi
+      #           done
+                
+      #           MERGED_BRANCH=$(cat "/tmp/merged_branch_${hash}.txt" 2>/dev/null || echo "unknown")
+      #           rm -f "/tmp/merged_branch_${hash}.txt"
+                
+      #           # Get merger from commit map
+      #           MERGER=$(grep "^$hash|" commit_to_github.map 2>/dev/null | cut -d'|' -f2 || echo "$author")
+                
+      #           # Record merge
+      #           SHORT_DATE=$(echo "$date" | cut -d' ' -f1)
+      #           echo "$BRANCH_NAME|$MERGED_BRANCH|$MERGER|$hash|$SHORT_DATE" >> branch_merges.txt
+      #         fi
+      #       done
+      #     done
+          
+      #     MERGE_COUNT=$(cat branch_merges.txt 2>/dev/null | wc -l || echo "0")
+      #     echo "✅ Found $MERGE_COUNT merge commits" >&2
+      #     echo "" >&2
+      #     echo "✅ Branch relationship detection complete" >&2
+      - name: Detect branch creators & relationships (Hybrid: Creator + Owner)
+              run: |
+                set -e
+                
+                echo "========================================" >&2
+                echo "DETECTING BRANCH RELATIONSHIPS (HYBRID APPROACH)" >&2
+                echo "========================================" >&2
+                
+                # Define org owners
+                ORG_OWNERS=("v-s-v-i-s-h-w-a-s" "Akarsh-Hegde" "HarshPandya4gd")
+                
+                # Get default branch
+                DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+                echo "Default branch: $DEFAULT_BRANCH" >&2
+                echo "" >&2
+                
+                > branch_ownership.map
+                > branch_relationships.txt
+                > branch_merges.txt
+                > branch_contributors.map
+                
+                # Count total branches
+                TOTAL_BRANCHES=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | grep -v 'origin/HEAD' | wc -l)
+                echo "📊 Total branches in repository: $TOTAL_BRANCHES" >&2
+                echo "$TOTAL_BRANCHES" > repo_stats_branches.txt
+                
+                # Build list of all branches sorted by commit date (GitHub's ordering)
+                git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | grep -v 'origin/HEAD' > all_branches_sorted.txt
+                
+                # STEP 1: Handle default branch first
+                echo "🏠 Processing default branch: $DEFAULT_BRANCH" >&2
+                INITIAL_COMMIT=$(git rev-list --max-parents=0 HEAD 2>/dev/null | head -1)
+                CREATOR=$(grep "^$INITIAL_COMMIT|" commit_to_github.map 2>/dev/null | cut -d'|' -f2 || echo "unknown")
+                
+                # Get primary contributor for default branch
+                PRIMARY=$(git log "origin/$DEFAULT_BRANCH" --format='%H' 2>/dev/null | while read ch; do
+                  grep "^$ch|" commit_to_github.map 2>/dev/null | cut -d'|' -f2
+                done | grep -v "^unknown$" | grep -v "^$" | sort | uniq -c | sort -rn | head -1 | awk '{print $2}' || echo "$CREATOR")
+                
+                echo "$DEFAULT_BRANCH|$CREATOR|$INITIAL_COMMIT|default|ROOT|$PRIMARY" >> branch_ownership.map
+                echo "$DEFAULT_BRANCH|$CREATOR|$PRIMARY" >> branch_contributors.map
+                echo "$DEFAULT_BRANCH|ROOT|none|0|Initial repository branch" >> branch_relationships.txt
+                echo "  ✅ $DEFAULT_BRANCH → Creator: @$CREATOR, Primary: @$PRIMARY (root branch)" >&2
+                echo "" >&2
+                
+                # STEP 2: Analyze all other branches using GitHub's merge-base logic
+                echo "🔍 Analyzing branch relationships..." >&2
+                PROCESSED=0
+                
+                while read branch; do
+                  [ "$branch" = "origin/HEAD" ] && continue
+                  
+                  BRANCH_NAME="${branch#origin/}"
+                  
+                  # Skip default branch (already processed)
+                  [ "$BRANCH_NAME" = "$DEFAULT_BRANCH" ] && continue
+                  
+                  PROCESSED=$((PROCESSED + 1))
+                  
+                  # PART A: Find PRIMARY CONTRIBUTOR (most commits on branch)
+                  echo "  📊 Analyzing contributors for $BRANCH_NAME..." >&2
+                  
+                  # Get ALL commits on this branch and find most frequent contributor
+                  > "/tmp/contributors_${BRANCH_NAME//\//_}.txt"
+                  git log "$branch" --format='%H' 2>/dev/null | while read commit_hash; do
+                    grep "^$commit_hash|" commit_to_github.map 2>/dev/null | cut -d'|' -f2
+                  done | grep -v "^unknown$" | grep -v "^$" | sort | uniq -c | sort -rn > "/tmp/contributors_${BRANCH_NAME//\//_}.txt"
+                  
+                  PRIMARY_CONTRIBUTOR=$(head -1 "/tmp/contributors_${BRANCH_NAME//\//_}.txt" 2>/dev/null | awk '{print $2}' || echo "unknown")
+                  PRIMARY_COMMIT_COUNT=$(head -1 "/tmp/contributors_${BRANCH_NAME//\//_}.txt" 2>/dev/null | awk '{print $1}' || echo "0")
+                  
+                  # PART B: Find parent branch using minimum merge-base distance (GitHub's method)
+                  BEST_PARENT=""
+                  BEST_DISTANCE=999999
+                  BEST_MERGE_BASE=""
+                  
+                  # Check all potential parent branches
+                  while read candidate_branch; do
+                    [ "$candidate_branch" = "origin/HEAD" ] && continue
+                    CANDIDATE_NAME="${candidate_branch#origin/}"
+                    
+                    # Don't compare with self
+                    [ "$CANDIDATE_NAME" = "$BRANCH_NAME" ] && continue
+                    
+                    # Calculate merge-base
+                    MERGE_BASE=$(git merge-base "$candidate_branch" "$branch" 2>/dev/null || echo "")
+                    
+                    if [ -n "$MERGE_BASE" ]; then
+                      # Calculate distance from merge-base to current branch
+                      DISTANCE=$(git rev-list --count "$MERGE_BASE..$branch" 2>/dev/null || echo "999999")
+                      
+                      # GitHub's logic: parent = branch with minimum distance to merge-base
+                      if [ "$DISTANCE" -lt "$BEST_DISTANCE" ]; then
+                        BEST_PARENT="$CANDIDATE_NAME"
+                        BEST_DISTANCE="$DISTANCE"
+                        BEST_MERGE_BASE="$MERGE_BASE"
+                      fi
+                    fi
+                  done < all_branches_sorted.txt
+                  
+                  # Handle case where no parent found
+                  if [ -z "$BEST_PARENT" ] || [ -z "$BEST_MERGE_BASE" ]; then
+                    echo "$BRANCH_NAME|$PRIMARY_CONTRIBUTOR||orphan|ORPHAN|$PRIMARY_CONTRIBUTOR" >> branch_ownership.map
+                    echo "$BRANCH_NAME|$PRIMARY_CONTRIBUTOR|$PRIMARY_CONTRIBUTOR" >> branch_contributors.map
+                    echo "$BRANCH_NAME|ORPHAN|none|0|No merge-base found with any branch" >> branch_relationships.txt
+                    echo "  ❓ $BRANCH_NAME → Creator: $PRIMARY_CONTRIBUTOR, Primary: @$PRIMARY_CONTRIBUTOR (orphan, $PRIMARY_COMMIT_COUNT commits)" >&2
+                    rm -f "/tmp/contributors_${BRANCH_NAME//\//_}.txt"
+                    continue
                   fi
+                  
+                  # PART C: Find BRANCH CREATOR (first commit after merge-base)
+                  DIVERGENCE_COMMITS=$(git rev-list --reverse "$BEST_MERGE_BASE..$branch" 2>/dev/null || echo "")
+                  
+                  if [ -z "$DIVERGENCE_COMMITS" ]; then
+                    # Branch has no unique commits - use primary contributor
+                    echo "$BRANCH_NAME|$PRIMARY_CONTRIBUTOR||same_as_parent|$BEST_PARENT|$PRIMARY_CONTRIBUTOR" >> branch_ownership.map
+                    echo "$BRANCH_NAME|$PRIMARY_CONTRIBUTOR|$PRIMARY_CONTRIBUTOR" >> branch_contributors.map
+                    echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|0|No unique commits (same as parent)" >> branch_relationships.txt
+                    echo "  🔗 $BRANCH_NAME → Creator: $PRIMARY_CONTRIBUTOR, Primary: @$PRIMARY_CONTRIBUTOR (parent: $BEST_PARENT, no unique commits)" >&2
+                    rm -f "/tmp/contributors_${BRANCH_NAME//\//_}.txt"
+                    continue
+                  fi
+                  
+                  # Sanitize branch name for file paths
+                  SAFE_BRANCH_NAME=$(echo "$BRANCH_NAME" | tr '/' '_' | tr ' ' '_')
+                  
+                  # Build patch-id map for parent branch (for cherry-pick detection)
+                  > "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
+                  git log "origin/$BEST_PARENT" --format='%H' 2>/dev/null | while read parent_commit; do
+                    PATCH_ID=$(git show "$parent_commit" 2>/dev/null | git patch-id --stable 2>/dev/null | cut -d' ' -f1 || echo "")
+                    if [ -n "$PATCH_ID" ]; then
+                      echo "$PATCH_ID|$parent_commit" >> "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
+                    fi
+                  done
+                  
+                  # Multi-pass strategy to find branch creator
+                  BRANCH_CREATOR=""
+                  CREATOR_COMMIT=""
+                  DETECTION_METHOD=""
+                  
+                  # PASS 1: First non-org, non-cherry-picked commit
+                  echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
+                    [ -z "$commit_hash" ] && continue
+                    [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
+                    
+                    COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
+                    GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
+                    
+                    [ "$GH_USER" = "unknown" ] && continue
+                    
+                    # Skip org owners
+                    IS_ORG=false
+                    for org_owner in "${ORG_OWNERS[@]}"; do
+                      if [ "$GH_USER" = "$org_owner" ]; then
+                        IS_ORG=true
+                        break
+                      fi
+                    done
+                    [ "$IS_ORG" = "true" ] && continue
+                    
+                    # Skip cherry-picked commits
+                    COMMIT_PATCH_ID=$(git show "$commit_hash" 2>/dev/null | git patch-id --stable 2>/dev/null | cut -d' ' -f1 || echo "")
+                    IS_CHERRY_PICK=false
+                    
+                    if [ -n "$COMMIT_PATCH_ID" ] && grep -q "^$COMMIT_PATCH_ID|" "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt" 2>/dev/null; then
+                      IS_CHERRY_PICK=true
+                    fi
+                    [ "$IS_CHERRY_PICK" = "true" ] && continue
+                    
+                    # Found creator!
+                    echo "$GH_USER|$commit_hash|pass1_strict" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+                  done
+                  
+                  # PASS 2: First non-org commit (allow cherry-picks)
+                  if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+                    echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
+                      [ -z "$commit_hash" ] && continue
+                      [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
+                      
+                      COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
+                      GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
+                      
+                      [ "$GH_USER" = "unknown" ] && continue
+                      
+                      IS_ORG=false
+                      for org_owner in "${ORG_OWNERS[@]}"; do
+                        if [ "$GH_USER" = "$org_owner" ]; then
+                          IS_ORG=true
+                          break
+                        fi
+                      done
+                      [ "$IS_ORG" = "true" ] && continue
+                      
+                      echo "$GH_USER|$commit_hash|pass2_allow_cherrypick" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+                    done
+                  fi
+                  
+                  # PASS 3: First known commit (including org owners)
+                  if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+                    echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
+                      [ -z "$commit_hash" ] && continue
+                      [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
+                      
+                      COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
+                      GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
+                      
+                      [ "$GH_USER" = "unknown" ] && continue
+                      
+                      echo "$GH_USER|$commit_hash|pass3_include_org" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+                    done
+                  fi
+                  
+                  # PASS 4: Use primary contributor as fallback
+                  if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+                    if [ "$PRIMARY_CONTRIBUTOR" != "unknown" ]; then
+                      FIRST_COMMIT=$(echo "$DIVERGENCE_COMMITS" | head -1 || git log "$branch" --format='%H' 2>/dev/null | tail -1)
+                      echo "$PRIMARY_CONTRIBUTOR|$FIRST_COMMIT|pass4_primary_contributor" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+                    fi
+                  fi
+                  
+                  # Read the result
+                  if [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+                    IFS='|' read BRANCH_CREATOR CREATOR_COMMIT DETECTION_METHOD < "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+                    
+                    echo "$BRANCH_NAME|$BRANCH_CREATOR|$CREATOR_COMMIT|detected|$BEST_PARENT|$PRIMARY_CONTRIBUTOR" >> branch_ownership.map
+                    echo "$BRANCH_NAME|$BRANCH_CREATOR|$PRIMARY_CONTRIBUTOR" >> branch_contributors.map
+                    echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|$BEST_DISTANCE|Branched from $BEST_PARENT ($BEST_DISTANCE commits ahead)" >> branch_relationships.txt
+                    
+                    if [ "$BRANCH_CREATOR" = "$PRIMARY_CONTRIBUTOR" ]; then
+                      echo "  🌿 $BRANCH_NAME → @$BRANCH_CREATOR (creator & primary, $PRIMARY_COMMIT_COUNT commits, parent: $BEST_PARENT, $DETECTION_METHOD)" >&2
+                    else
+                      echo "  🌿 $BRANCH_NAME → Creator: @$BRANCH_CREATOR, Primary: @$PRIMARY_CONTRIBUTOR ($PRIMARY_COMMIT_COUNT commits, parent: $BEST_PARENT, $DETECTION_METHOD)" >&2
+                    fi
+                  else
+                    # Absolute fallback
+                    echo "$BRANCH_NAME|$PRIMARY_CONTRIBUTOR||fallback|$BEST_PARENT|$PRIMARY_CONTRIBUTOR" >> branch_ownership.map
+                    echo "$BRANCH_NAME|$PRIMARY_CONTRIBUTOR|$PRIMARY_CONTRIBUTOR" >> branch_contributors.map
+                    echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|$BEST_DISTANCE|Detection failed, using primary contributor" >> branch_relationships.txt
+                    echo "  ⚠️  $BRANCH_NAME → @$PRIMARY_CONTRIBUTOR (fallback to primary, $PRIMARY_COMMIT_COUNT commits, parent: $BEST_PARENT)" >&2
+                  fi
+                  
+                  # Clean up temp files
+                  rm -f "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
+                  rm -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+                  rm -f "/tmp/contributors_${BRANCH_NAME//\//_}.txt"
+                  
+                  # Progress indicator
+                  if [ $((PROCESSED % 5)) -eq 0 ]; then
+                    echo "  ⏳ Processed $PROCESSED branches..." >&2
+                  fi
+                done < all_branches_sorted.txt
+                
+                echo "" >&2
+                echo "✅ Branch analysis complete ($PROCESSED branches)" >&2
+                
+                # STEP 3: Detect merge commits (GitHub graph merge lines)
+                echo "" >&2
+                echo "🔀 Detecting merge commits..." >&2
+                
+                git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | while read branch; do
+                  [ "$branch" = "origin/HEAD" ] && continue
+                  
+                  BRANCH_NAME="${branch#origin/}"
+                  
+                  # Find merge commits (commits with 2+ parents)
+                  git log "$branch" --format='%H|%P|%s|%an|%ae|%ci' --merges 2>/dev/null | while IFS='|' read hash parents subject author email date; do
+                    PARENT_COUNT=$(echo "$parents" | wc -w)
+                    
+                    if [ "$PARENT_COUNT" -ge 2 ]; then
+                      FIRST_PARENT=$(echo "$parents" | cut -d' ' -f1)
+                      SECOND_PARENT=$(echo "$parents" | cut -d' ' -f2)
+                      
+                      # Find which branch the second parent belongs to
+                      MERGED_BRANCH="unknown"
+                      git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | while read check_branch; do
+                        [ "$check_branch" = "origin/HEAD" ] && continue
+                        
+                        if git merge-base --is-ancestor "$SECOND_PARENT" "$check_branch" 2>/dev/null; then
+                          CHECK_NAME="${check_branch#origin/}"
+                          echo "$CHECK_NAME" > "/tmp/merged_branch_${hash}.txt"
+                          break
+                        fi
+                      done
+                      
+                      MERGED_BRANCH=$(cat "/tmp/merged_branch_${hash}.txt" 2>/dev/null || echo "unknown")
+                      rm -f "/tmp/merged_branch_${hash}.txt"
+                      
+                      # Get merger from commit map
+                      MERGER=$(grep "^$hash|" commit_to_github.map 2>/dev/null | cut -d'|' -f2 || echo "$author")
+                      
+                      # Record merge
+                      SHORT_DATE=$(echo "$date" | cut -d' ' -f1)
+                      echo "$BRANCH_NAME|$MERGED_BRANCH|$MERGER|$hash|$SHORT_DATE" >> branch_merges.txt
+                    fi
+                  done
                 done
                 
-                MERGED_BRANCH=$(cat "/tmp/merged_branch_${hash}.txt" 2>/dev/null || echo "unknown")
-                rm -f "/tmp/merged_branch_${hash}.txt"
+                MERGE_COUNT=$(cat branch_merges.txt 2>/dev/null | wc -l || echo "0")
+                echo "✅ Found $MERGE_COUNT merge commits" >&2
+                echo "" >&2
                 
-                # Get merger from commit map
-                MERGER=$(grep "^$hash|" commit_to_github.map 2>/dev/null | cut -d'|' -f2 || echo "$author")
+                # STEP 4: Summary statistics
+                TOTAL_WITH_CREATORS=$(grep -v "|unknown|" branch_ownership.map 2>/dev/null | wc -l || echo "0")
+                TOTAL_UNKNOWN=$(grep "|unknown|" branch_ownership.map 2>/dev/null | wc -l || echo "0")
                 
-                # Record merge
-                SHORT_DATE=$(echo "$date" | cut -d' ' -f1)
-                echo "$BRANCH_NAME|$MERGED_BRANCH|$MERGER|$hash|$SHORT_DATE" >> branch_merges.txt
-              fi
-            done
-          done
-          
-          MERGE_COUNT=$(cat branch_merges.txt 2>/dev/null | wc -l || echo "0")
-          echo "✅ Found $MERGE_COUNT merge commits" >&2
-          echo "" >&2
-          echo "✅ Branch relationship detection complete" >&2
+                echo "📊 Branch Attribution Summary:" >&2
+                echo "  - Total branches analyzed: $PROCESSED" >&2
+                echo "  - Successfully attributed: $TOTAL_WITH_CREATORS" >&2
+                echo "  - Unknown/unattributed: $TOTAL_UNKNOWN" >&2
+                echo "" >&2
+                echo "✅ Branch relationship detection complete" >&2
+
+
+
           
       - name: Fetch and batch process PRs
         env:
