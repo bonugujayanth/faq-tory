@@ -36,10 +36,12 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "lunr": "^2.3.9",
+    "multer": "^2.0.2",
     "sqlite3": "^5.1.6",
     "xss": "^1.0.14"
   },
   "devDependencies": {
+    "eslint": "^9.39.1",
     "jest": "^29.0.0",
     "nodemon": "^2.0.22",
     "supertest": "^6.3.4"
