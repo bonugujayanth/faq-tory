@@ -10,7 +10,7 @@ describe('QA Model Tests', () => {
     it('should create a new Q/A entry', async () => {
       createdEntry = await QA.create(sampleQuestion, sampleAnswer);
       
-      expect(createdEntry).toBeInstanceOf(Object);
+      expect(typeof createdEntry).toBe('object');
       expect(createdEntry).toHaveProperty('id');
       expect(typeof createdEntry.id).toBe('number');
       expect(createdEntry).toHaveProperty('question', sampleQuestion);
@@ -34,7 +34,7 @@ describe('QA Model Tests', () => {
     it('should get Q/A entry by ID', async () => {
       const entry = await QA.getById(createdEntry.id);
       
-      expect(entry).toBeInstanceOf(Object);
+      expect(typeof entry).toBe('object');
       expect(entry).toHaveProperty('id', createdEntry.id);
       expect(entry).toHaveProperty('question', sampleQuestion);
       expect(entry).toHaveProperty('answer', sampleAnswer);

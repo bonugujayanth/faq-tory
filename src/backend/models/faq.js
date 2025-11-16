@@ -1,6 +1,30 @@
 const db = require('./db');
 
 class FAQ {
+  // Helper: safely parse tags JSON on a row and return row copy
+  static parseTags(row) {
+    if (!row) return row;
+    const copy = Object.assign({}, row);
+    if (copy.tags) {
+      try {
+        copy.tags = JSON.parse(copy.tags);
+      } catch (e) {
+        copy.tags = [];
+      }
+    } else {
+      copy.tags = [];
+    }
+    return copy;
+  }
+
+  // Helper: ensure row has expected defaults for responses
+  static formatRow(row) {
+    const r = FAQ.parseTags(row);
+    if (r.view_count == null) r.view_count = 0;
+    if (!r.status) r.status = 'draft';
+    return r;
+  }
+
   // Create a new FAQ
   static create(faqData, callback) {
     const { question, answer, category_id, author_id, tags, status = 'draft' } = faqData;
@@ -27,14 +51,12 @@ class FAQ {
     
     db.get(sql, [id], (err, row) => {
       if (err) return callback(err);
-      if (row && row.tags) {
-        try {
-          row.tags = JSON.parse(row.tags);
-        } catch (e) {
-          row.tags = [];
-        }
+      try {
+        const formatted = FAQ.formatRow(row);
+        callback(null, formatted);
+      } catch (e) {
+        callback(null, row);
       }
-      callback(null, row);
     });
   }
 
@@ -84,19 +106,9 @@ class FAQ {
 
     db.all(sql, params, (err, rows) => {
       if (err) return callback(err);
-      
-      // Parse tags for each row
-      rows.forEach(row => {
-        if (row.tags) {
-          try {
-            row.tags = JSON.parse(row.tags);
-          } catch (e) {
-            row.tags = [];
-          }
-        }
-      });
-      
-      callback(null, rows);
+      // Parse and format tags for each row
+      const formatted = (rows || []).map(r => FAQ.formatRow(r));
+      callback(null, formatted);
     });
   }
 
@@ -220,19 +232,8 @@ class FAQ {
 
     db.all(sql, params, (err, rows) => {
       if (err) return callback(err);
-      
-      // Parse tags for each row
-      rows.forEach(row => {
-        if (row.tags) {
-          try {
-            row.tags = JSON.parse(row.tags);
-          } catch (e) {
-            row.tags = [];
-          }
-        }
-      });
-      
-      callback(null, rows);
+      const formatted = (rows || []).map(r => FAQ.formatRow(r));
+      callback(null, formatted);
     });
   }
 
