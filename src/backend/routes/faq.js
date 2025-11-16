@@ -1,6 +1,6 @@
 const express = require('express');
 const FAQ = require('../models/faq');
-const { authenticateToken, requirePermission, requireAnyRole, logAudit } = require('../middleware/auth');
+const { authenticateToken, requirePermission, logAudit } = require('../middleware/auth');
 
 const router = express.Router();
 

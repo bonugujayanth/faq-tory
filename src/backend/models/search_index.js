@@ -124,7 +124,7 @@ class SearchIndex {
       }
       
       // Try a simple search to verify index is working
-      const testResult = this.instance.search('*');
+      this.instance.search('*');
       return { 
         ok: true, 
         documentCount: this.documents.size,

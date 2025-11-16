@@ -38,10 +38,7 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
                 } else {
                     // For users table, hide password hashes
                     if (table.name === 'users') {
-                        rows = rows.map(row => {
-                            const { password, ...rest } = row;
-                            return { ...rest, password: '(hidden)' };
-                        });
+                        rows = rows.map(row => ({ ...row, password: '(hidden)' }));
                     }
                     console.log(JSON.stringify(rows, null, 2));
                 }

@@ -13,7 +13,7 @@ app.use(express.json());
 app.use('/api/qa', authenticateToken, qaRoutes);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error(err.stack);
   
   if (err.name === 'ValidationError') {

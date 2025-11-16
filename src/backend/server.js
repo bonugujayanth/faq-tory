@@ -7,7 +7,8 @@ const adminRoutes = require('./routes/admin');
 const categoryRoutes = require('./routes/categories');
 const qaRoutes = require('./routes/qa');
 const searchRoutes = require('./routes/search');
-const db = require('./models/db');
+// require DB module for initialization side-effects (do not assign to unused variable)
+require('./models/db');
 const path = require('path');
 const http = require('http');
 const { errorHandler } = require('./middleware/error');

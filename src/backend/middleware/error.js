@@ -1,4 +1,4 @@
-function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res, _next) {
   // Default to 500
   const status = err.status || 500;
   const payload = {

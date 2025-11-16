@@ -1,5 +1,5 @@
 const QA = require('../models/qa');
-const QAVersion = require('../models/qa_version');
+// QAVersion model not required directly in these tests
 const { setupTestDatabase } = require('./setup');
 
 describe('QA Version Control Tests', () => {
