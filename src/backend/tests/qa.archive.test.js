@@ -1,5 +1,4 @@
 const QA = require('../models/qa');
-const db = require('../models/db');
 const { setupTestDatabase } = require('./setup');
 
 describe('QA Archive Tests', () => {
