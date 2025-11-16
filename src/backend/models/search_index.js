@@ -15,20 +15,13 @@ class SearchIndex {
         });
       });
 
-      // Build index
-      this.instance = lunr(function() {
-        this.field('question', { boost: 10 });
-        this.field('answer');
-        this.ref('id');
-
-        entries.forEach(entry => {
-          this.add({
-            id: entry.id,
-            question: entry.question,
-            answer: entry.answer
-          });
-        });
+      // Store documents for retrieval
+      entries.forEach(entry => {
+        this.documents.set(entry.id.toString(), entry);
       });
+
+      // Build index from stored documents
+      this.rebuildIndex();
 
       // Store documents for retrieval
       entries.forEach(entry => {
@@ -42,19 +35,30 @@ class SearchIndex {
     }
   }
 
+  static rebuildIndex() {
+    try {
+      // Build a fresh index from current documents map
+      const docs = Array.from(this.documents.values());
+      this.instance = lunr(function() {
+        this.field('question', { boost: 10 });
+        this.field('answer');
+        this.ref('id');
+
+        docs.forEach(entry => {
+          this.add({ id: entry.id, question: entry.question, answer: entry.answer });
+        });
+      });
+    } catch (err) {
+      console.error('Failed to rebuild search index:', err);
+      this.instance = null;
+    }
+  }
+
   static async addDocument(qaEntry) {
     try {
-      if (!this.instance) {
-        await this.initialize();
-      }
-
-      this.instance.add({
-        id: qaEntry.id,
-        question: qaEntry.question,
-        answer: qaEntry.answer
-      });
-
+      // Keep documents map in sync and rebuild the index
       this.documents.set(qaEntry.id.toString(), qaEntry);
+      this.rebuildIndex();
       return true;
     } catch (err) {
       console.error('Failed to add document to index:', err);
@@ -64,21 +68,9 @@ class SearchIndex {
 
   static async updateDocument(qaEntry) {
     try {
-      if (!this.instance) {
-        await this.initialize();
-      }
-
-      // Remove old version
-      this.documents.delete(qaEntry.id.toString());
-
-      // Add updated version
-      this.instance.add({
-        id: qaEntry.id,
-        question: qaEntry.question,
-        answer: qaEntry.answer
-      });
-
+      // Update stored document and rebuild the index
       this.documents.set(qaEntry.id.toString(), qaEntry);
+      this.rebuildIndex();
       return true;
     } catch (err) {
       console.error('Failed to update document in index:', err);
@@ -88,11 +80,8 @@ class SearchIndex {
 
   static async removeDocument(id) {
     try {
-      if (!this.instance) {
-        await this.initialize();
-      }
-
       this.documents.delete(id.toString());
+      this.rebuildIndex();
       return true;
     } catch (err) {
       console.error('Failed to remove document from index:', err);
