@@ -1,0 +1,20 @@
+{
+  "root": true,
+  "env": {
+    "node": true,
+    "es2021": true,
+    "jest": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "script"
+  },
+  "extends": "eslint:recommended",
+  "rules": {
+    "no-console": "off",
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-empty": "off",
+    "no-const-assign": "off",
+    "no-unused-expressions": "off"
+  }
+}
