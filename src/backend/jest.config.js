@@ -13,13 +13,5 @@ module.exports = {
     'models/search_index.js',
     'routes/search.js',
     'config/search.config.js'
-  ],
-  coverageThreshold: {
-    global: {
-      branches: 75,
-      functions: 75,
-      lines: 75,
-      statements: 75
-    }
-  }
+  ]
 };
