@@ -5,6 +5,10 @@ on:
   pull_request:
     branches: [main]
 
+defaults:
+  run:
+    working-directory: src/backend
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -20,11 +24,9 @@ jobs:
           cache-dependency-path: src/backend/package-lock.json
 
       - name: Install dependencies
-        working-directory: src/backend
         run: npm ci
 
       - name: Run lint
-        working-directory: src/backend
         run: npm run lint
 
   test:
@@ -42,11 +44,9 @@ jobs:
           cache-dependency-path: src/backend/package-lock.json
 
       - name: Install dependencies
-        working-directory: src/backend
         run: npm ci
 
       - name: Run tests
-        working-directory: src/backend
         env:
           CI: true
         run: npm test
@@ -66,9 +66,18 @@ jobs:
           cache-dependency-path: src/backend/package-lock.json
 
       - name: Install dependencies
-        working-directory: src/backend
         run: npm ci
 
       - name: Build
-        working-directory: src/backend
         run: npm run build --if-present
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy (placeholder)
+        run: echo "Deployment step – add your hosting command here"

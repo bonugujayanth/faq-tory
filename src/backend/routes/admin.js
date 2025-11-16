@@ -85,7 +85,7 @@ router.post('/users',
 
     try {
       const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-      const sql = `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)`;
+      const sql = 'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)';
       
       db.run(sql, [name, email, hashedPassword, role], function(err) {
         if (err) {

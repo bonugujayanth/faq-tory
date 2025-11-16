@@ -19,7 +19,9 @@ class QAVersion {
     return new Promise((resolve, reject) => {
       const sql = 'INSERT INTO qa_versions (qa_id, question, answer, version) VALUES (?, ?, ?, ?)';
       db.run(sql, [qaId, question, answer, version], function(err) {
-        if (err) return reject(err);
+        if (err) {
+          return reject(err);
+        }
         resolve({ id: this.lastID, qa_id: qaId, question, answer, version });
       });
     });
@@ -30,7 +32,9 @@ class QAVersion {
     return new Promise((resolve, reject) => {
       const sql = 'SELECT * FROM qa_versions WHERE qa_id = ? ORDER BY version DESC';
       db.all(sql, [qaId], (err, rows) => {
-        if (err) return reject(err);
+        if (err) {
+          return reject(err);
+        }
         resolve(rows);
       });
     });
@@ -41,8 +45,12 @@ class QAVersion {
     return new Promise((resolve, reject) => {
       const sql = 'SELECT * FROM qa_versions WHERE qa_id = ? AND version = ?';
       db.get(sql, [qaId, version], (err, row) => {
-        if (err) return reject(err);
-        if (!row) return reject(new Error('Version not found'));
+        if (err) {
+          return reject(err);
+        }
+        if (!row) {
+          return reject(new Error('Version not found'));
+        }
         resolve(row);
       });
     });
@@ -53,7 +61,9 @@ class QAVersion {
     return new Promise((resolve, reject) => {
       const sql = 'SELECT MAX(version) as latest_version FROM qa_versions WHERE qa_id = ?';
       db.get(sql, [qaId], (err, row) => {
-        if (err) return reject(err);
+        if (err) {
+          return reject(err);
+        }
         resolve(row?.latest_version || 0);
       });
     });

@@ -10,7 +10,9 @@ class FAQ {
     `;
     
     db.run(sql, [question, answer, category_id, author_id, JSON.stringify(tags || []), status], function(err) {
-      if (err) return callback(err);
+      if (err) {
+        return callback(err);
+      }
       callback(null, { id: this.lastID, ...faqData });
     });
   }
@@ -26,7 +28,9 @@ class FAQ {
     `;
     
     db.get(sql, [id], (err, row) => {
-      if (err) return callback(err);
+      if (err) {
+        return callback(err);
+      }
       if (row && row.tags) {
         try {
           row.tags = JSON.parse(row.tags);
@@ -83,7 +87,9 @@ class FAQ {
     }
 
     db.all(sql, params, (err, rows) => {
-      if (err) return callback(err);
+      if (err) {
+        return callback(err);
+      }
       
       // Parse tags for each row
       rows.forEach(row => {
@@ -125,7 +131,9 @@ class FAQ {
     const sql = `UPDATE faqs SET ${fields.join(', ')} WHERE id = ?`;
     
     db.run(sql, values, function(err) {
-      if (err) return callback(err);
+      if (err) {
+        return callback(err);
+      }
       if (this.changes === 0) {
         return callback(new Error('FAQ not found'));
       }
@@ -137,7 +145,9 @@ class FAQ {
   static delete(id, callback) {
     const sql = 'DELETE FROM faqs WHERE id = ?';
     db.run(sql, [id], function(err) {
-      if (err) return callback(err);
+      if (err) {
+        return callback(err);
+      }
       if (this.changes === 0) {
         return callback(new Error('FAQ not found'));
       }
@@ -149,7 +159,9 @@ class FAQ {
   static publish(id, callback) {
     const sql = 'UPDATE faqs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
     db.run(sql, ['published', id], function(err) {
-      if (err) return callback(err);
+      if (err) {
+        return callback(err);
+      }
       if (this.changes === 0) {
         return callback(new Error('FAQ not found'));
       }
@@ -161,7 +173,9 @@ class FAQ {
   static archive(id, callback) {
     const sql = 'UPDATE faqs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
     db.run(sql, ['archived', id], function(err) {
-      if (err) return callback(err);
+      if (err) {
+        return callback(err);
+      }
       if (this.changes === 0) {
         return callback(new Error('FAQ not found'));
       }
@@ -173,7 +187,9 @@ class FAQ {
   static incrementViewCount(id, callback) {
     const sql = 'UPDATE faqs SET view_count = view_count + 1 WHERE id = ?';
     db.run(sql, [id], function(err) {
-      if (err) return callback(err);
+      if (err) {
+        return callback(err);
+      }
       callback(null, { id, changes: this.changes });
     });
   }
@@ -219,7 +235,9 @@ class FAQ {
     params.push(`%${query}%`, `%${query}%`, limit, offset);
 
     db.all(sql, params, (err, rows) => {
-      if (err) return callback(err);
+      if (err) {
+        return callback(err);
+      }
       
       // Parse tags for each row
       rows.forEach(row => {

@@ -28,7 +28,9 @@ class QA {
               'INSERT INTO qa (question, answer, current_version) VALUES (?, ?, 1)',
               [question, answer],
               function(err) {
-                if (err) return rej(err);
+                if (err) {
+                  return rej(err);
+                }
                 res({ id: this.lastID, question, answer, current_version: 1 });
               }
             );
@@ -54,7 +56,9 @@ class QA {
     return new Promise((resolve, reject) => {
       const sql = 'SELECT * FROM qa ORDER BY created_at DESC';
       db.all(sql, [], (err, rows) => {
-        if (err) return reject(err);
+        if (err) {
+          return reject(err);
+        }
         resolve(rows);
       });
     });
@@ -65,8 +69,12 @@ class QA {
     return new Promise((resolve, reject) => {
       const sql = 'SELECT * FROM qa WHERE id = ?';
       db.get(sql, [id], (err, row) => {
-        if (err) return reject(err);
-        if (!row) return reject(new Error('Q/A entry not found'));
+        if (err) {
+          return reject(err);
+        }
+        if (!row) {
+          return reject(new Error('Q/A entry not found'));
+        }
         resolve(row);
       });
     });
@@ -98,8 +106,12 @@ class QA {
               WHERE id = ?
             `;
             db.run(sql, [question, answer, newVersion, id], function(err) {
-              if (err) return rej(err);
-              if (this.changes === 0) return rej(new Error('Q/A entry not found'));
+              if (err) {
+                return rej(err);
+              }
+              if (this.changes === 0) {
+                return rej(new Error('Q/A entry not found'));
+              }
               res();
             });
           });
@@ -141,8 +153,12 @@ class QA {
               WHERE id = ?
             `;
             db.run(sql, [versionEntry.question, versionEntry.answer, version, id], function(err) {
-              if (err) return rej(err);
-              if (this.changes === 0) return rej(new Error('Q/A entry not found'));
+              if (err) {
+                return rej(err);
+              }
+              if (this.changes === 0) {
+                return rej(new Error('Q/A entry not found'));
+              }
               res();
             });
           });
@@ -185,8 +201,12 @@ class QA {
           // Delete from main qa table
           await new Promise((res, rej) => {
             db.run('DELETE FROM qa WHERE id = ?', [id], function(err) {
-              if (err) return rej(err);
-              if (this.changes === 0) return rej(new Error('Q/A entry not found'));
+              if (err) {
+                return rej(err);
+              }
+              if (this.changes === 0) {
+                return rej(new Error('Q/A entry not found'));
+              }
               res();
             });
           });

@@ -18,7 +18,9 @@ describe('Negative / Edge Case Coverage', () => {
       const fs = require('fs');
       const dbPath = path.join(__dirname, '..', 'data', 'test_negative_cases.db');
       try {
-        if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+        if (fs.existsSync(dbPath)) {
+          fs.unlinkSync(dbPath);
+        }
         // Small delay to ensure file is released
         setTimeout(() => {
           // Now create fresh tables
@@ -163,7 +165,11 @@ describe('Negative / Edge Case Coverage', () => {
   });
 
   test('Error handler development payload includes error field', () => {
-    const req = {}; const res = { statusCode: null, body: null, status(code){ this.statusCode=code; return this; }, json(p){ this.body=p; } }; const next = () => {};
+    const req = {}; const res = { statusCode: null, body: null, status(code){
+      this.statusCode=code; return this; 
+    }, json(p){
+      this.body=p; 
+    } }; const next = () => {};
     process.env.NODE_ENV = 'development';
     const err = new Error('Boom'); err.status = 501; err.publicMessage = 'Public';
     errorHandler(err, req, res, next);

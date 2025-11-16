@@ -8,7 +8,13 @@ function initIsolatedDb(suffix) {
   const dbPath = path.join(__dirname, '..', 'data', `test_${suffix}.db`);
   process.env.DB_PATH = dbPath;
   process.env.JWT_SECRET = 'testsecret';
-  try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
+  try {
+    if (fs.existsSync(dbPath)) {
+      fs.unlinkSync(dbPath);
+    }
+  } catch (e) {
+    // File already deleted or inaccessible, continue
+  }
   return dbPath;
 }
 

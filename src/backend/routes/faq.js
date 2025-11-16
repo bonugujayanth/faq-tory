@@ -23,7 +23,7 @@ router.get('/', authenticateToken, (req, res) => {
   if (req.user.role === 'editor') {
     if (!filters.status || filters.status === 'published') {
       // Show published FAQs and editor's own drafts
-      const sql = `
+      let sql = `
         SELECT f.*, c.name as category_name, u.name as author_name
         FROM faqs f
         LEFT JOIN categories c ON f.category_id = c.id
@@ -31,16 +31,16 @@ router.get('/', authenticateToken, (req, res) => {
         WHERE (f.status = 'published' OR (f.status = 'draft' AND f.author_id = ?))
         ORDER BY f.created_at DESC
       `;
-      
+
       const params = [req.user.id];
       if (filters.limit) {
         sql += ' LIMIT ?';
         params.push(parseInt(filters.limit));
-      }
-      
-      require('sqlite3').Database.prototype.all.call(
+      }      require('sqlite3').Database.prototype.all.call(
         require('../models/db'), sql, params, (err, rows) => {
-          if (err) return res.status(500).json({ message: 'Database error' });
+          if (err) {
+            return res.status(500).json({ message: 'Database error' });
+          }
           
           rows.forEach(row => {
             if (row.tags) {
@@ -119,7 +119,9 @@ router.get('/:id', authenticateToken, (req, res) => {
     // Increment view count for published FAQs
     if (faq.status === 'published') {
       FAQ.incrementViewCount(faqId, (err) => {
-        if (err) console.error('Error incrementing view count:', err);
+        if (err) {
+          console.error('Error incrementing view count:', err);
+        }
       });
     }
 

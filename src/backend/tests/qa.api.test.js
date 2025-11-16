@@ -10,7 +10,9 @@ const dbPath = process.env.DB_PATH;
 
 // Remove any existing test DB
 try {
-  if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+  if (fs.existsSync(dbPath)) {
+    fs.unlinkSync(dbPath);
+  }
 } catch (e) {
   // ignore
 }
@@ -27,15 +29,27 @@ afterAll((done) => {
   try {
     if (db && typeof db.close === 'function') {
       db.close(() => {
-        try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
+        try {
+          if (fs.existsSync(dbPath)) {
+            fs.unlinkSync(dbPath);
+          } 
+        } catch (e) {}
         done();
       });
     } else {
-      try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
+      try {
+        if (fs.existsSync(dbPath)) {
+          fs.unlinkSync(dbPath);
+        } 
+      } catch (e) {}
       done();
     }
   } catch (e) {
-    try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
+    try {
+      if (fs.existsSync(dbPath)) {
+        fs.unlinkSync(dbPath);
+      } 
+    } catch (e) {}
     done();
   }
 });

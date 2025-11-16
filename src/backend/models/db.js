@@ -7,7 +7,9 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'app.d
 
 // Ensure directory exists
 const dbDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {

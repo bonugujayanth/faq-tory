@@ -5,10 +5,14 @@ async function setupTestDatabase() {
     db.serialize(() => {
       // Drop existing tables in correct order (due to foreign keys)
       db.run('DROP TABLE IF EXISTS qa_versions', (err) => {
-        if (err) console.error('Error dropping qa_versions:', err);
+        if (err) {
+          console.error('Error dropping qa_versions:', err);
+        }
         
         db.run('DROP TABLE IF EXISTS qa', (err) => {
-          if (err) console.error('Error dropping qa:', err);
+          if (err) {
+            console.error('Error dropping qa:', err);
+          }
           
           // Create qa table with current_version column
           db.run(`
