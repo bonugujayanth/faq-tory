@@ -1,5 +1,12 @@
 name: CI-CD Pipeline
 
+on:
+  push:
+    branches: [main, develop, 'feature/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -95,9 +102,4 @@ jobs:
         run: echo "Running integration tests..."
       - name: Deploy to production
         run: echo "Deploying to production environment..."
-      - name: Run integration tests
-        run: echo "Running integration tests..."
-      - name: Deploy to production
-        run: echo "Deploying to production environment..."
-      - name: Deploy to production
 
