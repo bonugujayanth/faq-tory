@@ -7,16 +7,21 @@ class SearchIndex {
 
   static async initialize() {
     try {
-      // Get all Q/A entries
+      // Get all FAQ entries (faqs table includes tags and metadata)
       const entries = await new Promise((resolve, reject) => {
-        db.all('SELECT * FROM qa WHERE archived = 0', [], (err, rows) => {
+        db.all("SELECT * FROM faqs WHERE status != 'archived'", [], (err, rows) => {
           if (err) return reject(err);
           resolve(rows);
         });
       });
 
-      // Store documents for retrieval
+      // Store documents for retrieval (parse tags JSON)
       entries.forEach(entry => {
+        try {
+          if (entry.tags && typeof entry.tags === 'string') entry.tags = JSON.parse(entry.tags);
+        } catch (e) {
+          entry.tags = [];
+        }
         this.documents.set(entry.id.toString(), entry);
       });
 
@@ -118,17 +123,47 @@ class SearchIndex {
     }
   }
 
-  static async search(query) {
+  static async search(query, options = {}) {
     try {
       if (!this.instance) {
         await this.initialize();
       }
 
       const results = this.instance.search(query);
-      return results.map(result => ({
+      // Map to documents and apply optional filters (tags, date ranges)
+      const mapped = results.map(result => ({
         ...this.documents.get(result.ref),
         score: result.score
       }));
+
+      // Apply runtime filters in JS (documents are already fetched into memory)
+      let filtered = mapped;
+      if (options.tags && Array.isArray(options.tags) && options.tags.length > 0) {
+        const tagSet = new Set(options.tags);
+        filtered = filtered.filter(doc => Array.isArray(doc.tags) && doc.tags.some(t => tagSet.has(t)));
+      }
+
+      if (options.startDate) {
+        const sd = new Date(options.startDate);
+        filtered = filtered.filter(doc => new Date(doc.created_at) >= sd);
+      }
+
+      if (options.endDate) {
+        const ed = new Date(options.endDate);
+        filtered = filtered.filter(doc => new Date(doc.created_at) <= ed);
+      }
+
+      if (options.updatedStart) {
+        const us = new Date(options.updatedStart);
+        filtered = filtered.filter(doc => new Date(doc.updated_at) >= us);
+      }
+
+      if (options.updatedEnd) {
+        const ue = new Date(options.updatedEnd);
+        filtered = filtered.filter(doc => new Date(doc.updated_at) <= ue);
+      }
+
+      return filtered;
     } catch (err) {
       console.error('Search failed:', err);
       return [];

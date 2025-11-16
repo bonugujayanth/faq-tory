@@ -27,7 +27,9 @@ const upload = multer({
 // DFBTR-169: Import Q/A data via CSV/JSON
 // multer runs first to consume the multipart stream, then auth checks
 router.post('/import', upload.single('file'), authenticateToken, async (req, res) => {
+  console.log('[qa.import] /import called, user:', req.user && req.user.email);
   try {
+    console.log('[qa.import] file present:', !!req.file, 'file:', req.file && req.file.originalname);
     // Check if user is admin
     if (req.user.role !== 'admin') {
       if (req.file) fs.unlinkSync(req.file.path); // Clean up uploaded file
@@ -63,6 +65,7 @@ router.post('/import', upload.single('file'), authenticateToken, async (req, res
       const results = await insertQADataRowByRow(qaData);
       
       // Clean up uploaded file
+      console.log('[qa.import] import completed, cleaning uploaded file:', filePath);
       fs.unlinkSync(filePath);
       
       // DFBTR-176, DFBTR-177, DFBTR-178: Enhanced validation report
@@ -94,7 +97,8 @@ router.post('/import', upload.single('file'), authenticateToken, async (req, res
       res.status(201).json(validationReport);
     } catch (err) {
       // Clean up uploaded file on error
-      if (fs.existsSync(filePath)) {
+      console.log('[qa.import] error occurred during import, cleaning uploaded file if exists');
+      if (filePath && fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
       throw err;
@@ -241,15 +245,28 @@ router.get('/export', authenticateToken, async (req, res) => {
     const includeArchived = req.query.includeArchived === 'true';
     
     // DFBTR-173: Add filters (tags, date ranges, categories)
+    // Parse and validate filters
+    const rawTags = req.query.tags;
+    const tags = rawTags ? rawTags.split(',').map(t => t.trim()).filter(Boolean) : null;
     const filters = {
       includeArchived,
-      tags: req.query.tags ? req.query.tags.split(',') : null,
+      tags,
       startDate: req.query.startDate || null,
       endDate: req.query.endDate || null,
       category: req.query.category || null
     };
 
-    // Get Q/A entries with filters
+    const isValidDate = (d) => !d || !Number.isNaN(Date.parse(d));
+    if (!isValidDate(filters.startDate) || !isValidDate(filters.endDate)) {
+      return res.status(400).json({ error: 'Invalid date format for filters' });
+    }
+
+    if (tags) {
+      const tagOk = tags.every(t => /^[\w-]+$/.test(t));
+      if (!tagOk) return res.status(400).json({ error: 'Invalid tags filter' });
+    }
+
+    // Get Q/A entries with filters (model handles parameterized queries)
     let entries = await getFilteredQAEntries(filters);
 
     // DFBTR-174 & DFBTR-179: Implement CSV/JSON generation
@@ -272,33 +289,45 @@ router.get('/export', authenticateToken, async (req, res) => {
 
 // Helper function to get filtered Q/A entries (DFBTR-173)
 async function getFilteredQAEntries(filters) {
-  // Get all entries
-  let entries = await QA.getAll(filters.includeArchived);
+  // QA.getAll in this codebase returns a Promise and accepts includeArchived boolean.
+  // Call the model to get entries, then apply any additional runtime filters server-side.
+  const includeArchived = !!filters.includeArchived;
+  const rows = await QA.getAll(includeArchived);
 
-  // Apply date filters
+  // Apply lightweight runtime filters that the model may not support (tags, date ranges, search)
+  let results = rows || [];
+
+  if (filters.search) {
+    const term = (filters.search || '').toLowerCase();
+    results = results.filter(r => (r.question || '').toLowerCase().includes(term) || (r.answer || '').toLowerCase().includes(term));
+  }
+
+  if (Array.isArray(filters.tags) && filters.tags.length > 0) {
+    const tagSet = new Set(filters.tags);
+    results = results.filter(r => {
+      try {
+        const tags = typeof r.tags === 'string' ? JSON.parse(r.tags) : r.tags || [];
+        return Array.isArray(tags) && tags.some(t => tagSet.has(t));
+      } catch (e) {
+        return false;
+      }
+    });
+  }
+
   if (filters.startDate) {
-    const startDate = new Date(filters.startDate);
-    entries = entries.filter(entry => new Date(entry.created_at) >= startDate);
+    const sd = new Date(filters.startDate);
+    results = results.filter(r => new Date(r.created_at) >= sd);
   }
 
   if (filters.endDate) {
-    const endDate = new Date(filters.endDate);
-    entries = entries.filter(entry => new Date(entry.created_at) <= endDate);
+    const ed = new Date(filters.endDate);
+    results = results.filter(r => new Date(r.updated_at) <= ed);
   }
 
-  // Note: Tags and categories would require additional database schema
-  // This is a placeholder for future implementation
-  if (filters.tags && filters.tags.length > 0) {
-    // Filter by tags (requires tags column in database)
-    // entries = entries.filter(entry => filters.tags.some(tag => entry.tags?.includes(tag)));
-  }
+  if (filters.limit) results = results.slice(0, parseInt(filters.limit, 10));
+  if (filters.offset) results = results.slice(parseInt(filters.offset, 10));
 
-  if (filters.category) {
-    // Filter by category (requires category column in database)
-    // entries = entries.filter(entry => entry.category === filters.category);
-  }
-
-  return entries;
+  return results;
 }
 
 // Helper function to generate CSV from Q/A entries (DFBTR-174)
@@ -346,11 +375,37 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Get all Q/A entries
+// Get all Q/A entries (supports filters)
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const includeArchived = req.query.includeArchived === 'true';
-    const entries = await QA.getAll(includeArchived);
+    console.log('[qa.get] GET /api/qa called, user:', req.user && req.user.email);
+    const filters = {
+      includeArchived: req.query.includeArchived === 'true',
+      limit: req.query.limit,
+      offset: req.query.offset,
+      category_id: req.query.category || null,
+      status: req.query.status || null,
+      search: req.query.search || null,
+      startDate: req.query.startDate || null,
+      endDate: req.query.endDate || null,
+      tags: req.query.tags ? req.query.tags.split(',').map(t => t.trim()).filter(Boolean) : undefined
+    };
+
+    const isValidDate = (d) => !d || !Number.isNaN(Date.parse(d));
+    if (!isValidDate(filters.startDate) || !isValidDate(filters.endDate)) {
+      return res.status(400).json({ error: 'Invalid date format for filters' });
+    }
+
+    if (filters.tags) {
+      const tagOk = filters.tags.every(t => /^[\w-]+$/.test(t));
+      if (!tagOk) return res.status(400).json({ error: 'Invalid tags filter' });
+    }
+
+    if (filters.limit) filters.limit = parseInt(filters.limit, 10);
+    if (filters.offset) filters.offset = parseInt(filters.offset, 10);
+
+    const entries = await getFilteredQAEntries(filters);
+    console.log('[qa.get] returning entries count:', entries && entries.length);
     res.json(entries);
   } catch (err) {
     res.status(500).json({ error: err.message });

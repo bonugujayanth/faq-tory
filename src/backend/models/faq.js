@@ -8,7 +8,7 @@ class FAQ {
       INSERT INTO faqs (question, answer, category_id, author_id, tags, status)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
-    
+
     db.run(sql, [question, answer, category_id, author_id, JSON.stringify(tags || []), status], function(err) {
       if (err) return callback(err);
       callback(null, { id: this.lastID, ...faqData });
@@ -24,7 +24,7 @@ class FAQ {
       LEFT JOIN users u ON f.author_id = u.id
       WHERE f.id = ?
     `;
-    
+
     db.get(sql, [id], (err, row) => {
       if (err) return callback(err);
       if (row && row.tags) {
@@ -39,6 +39,7 @@ class FAQ {
   }
 
   // Get all FAQs with optional filtering
+  // Supported filters: status, category_id, author_id, search, limit, offset, startDate, endDate, tags (array), includeArchived
   static getAll(filters = {}, callback) {
     let sql = `
       SELECT f.*, c.name as category_name, u.name as author_name
@@ -48,6 +49,12 @@ class FAQ {
       WHERE 1=1
     `;
     const params = [];
+
+    // Handle archived inclusion
+    if (!filters.includeArchived) {
+      // default to only non-archived unless explicitly requested
+      sql += " AND f.status != 'archived'";
+    }
 
     if (filters.status) {
       sql += ' AND f.status = ?';
@@ -70,6 +77,25 @@ class FAQ {
       params.push(searchTerm, searchTerm);
     }
 
+    // Date range filters (created_at and updated_at)
+    if (filters.startDate) {
+      sql += ' AND datetime(f.created_at) >= datetime(?)';
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      sql += ' AND datetime(f.updated_at) <= datetime(?)';
+      params.push(filters.endDate);
+    }
+
+    // Tags filtering: filters.tags should be an array of tag strings
+    if (Array.isArray(filters.tags) && filters.tags.length > 0) {
+      // match JSON array content using LIKE on the serialized tags (e.g., '%"tag"%')
+      filters.tags.forEach(tag => {
+        sql += ' AND f.tags LIKE ?';
+        params.push(`%"${tag}"%`);
+      });
+    }
+
     sql += ' ORDER BY f.created_at DESC';
 
     if (filters.limit) {
@@ -84,7 +110,7 @@ class FAQ {
 
     db.all(sql, params, (err, rows) => {
       if (err) return callback(err);
-      
+
       // Parse tags for each row
       rows.forEach(row => {
         if (row.tags) {
@@ -95,7 +121,7 @@ class FAQ {
           }
         }
       });
-      
+
       callback(null, rows);
     });
   }
@@ -123,7 +149,7 @@ class FAQ {
     values.push(id);
 
     const sql = `UPDATE faqs SET ${fields.join(', ')} WHERE id = ?`;
-    
+
     db.run(sql, values, function(err) {
       if (err) return callback(err);
       if (this.changes === 0) {
@@ -181,7 +207,7 @@ class FAQ {
   // Search FAQs with keyword ranking
   static search(query, options = {}, callback) {
     const { limit = 10, offset = 0, category_id, status = 'published' } = options;
-    
+
     let sql = `
       SELECT f.*, c.name as category_name, u.name as author_name,
       (
@@ -197,7 +223,7 @@ class FAQ {
       LEFT JOIN users u ON f.author_id = u.id
       WHERE f.status = ?
     `;
-    
+
     const params = [
       `%${query}%`, // Exact match in question (highest score)
       `%${query}%`, // Exact match in answer
@@ -215,12 +241,12 @@ class FAQ {
       ORDER BY relevance_score DESC, f.view_count DESC, f.created_at DESC
       LIMIT ? OFFSET ?
     `;
-    
+
     params.push(`%${query}%`, `%${query}%`, limit, offset);
 
     db.all(sql, params, (err, rows) => {
       if (err) return callback(err);
-      
+
       // Parse tags for each row
       rows.forEach(row => {
         if (row.tags) {
@@ -231,7 +257,7 @@ class FAQ {
           }
         }
       });
-      
+
       callback(null, rows);
     });
   }
@@ -247,7 +273,7 @@ class FAQ {
         SUM(view_count) as total_views
       FROM faqs
     `;
-    
+
     db.get(sql, [], callback);
   }
 }
