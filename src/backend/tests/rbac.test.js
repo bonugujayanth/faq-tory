@@ -57,7 +57,7 @@ describe('RBAC System Tests', () => {
       .send({ email: 'admin@test.com', password: 'password' })).body.token : null;
 
     // Create editor user
-    const editorRes = await request(app)
+    await request(app)
       .post('/api/auth/signup')
       .send({ name: 'Editor User', email: 'editor@test.com', password: 'password' });
     
@@ -70,7 +70,7 @@ describe('RBAC System Tests', () => {
       .send({ email: 'editor@test.com', password: 'password' })).body.token;
 
     // Create viewer user
-    const viewerRes = await request(app)
+    await request(app)
       .post('/api/auth/signup')
       .send({ name: 'Viewer User', email: 'viewer@test.com', password: 'password' });
     
@@ -307,7 +307,7 @@ describe('RBAC System Tests', () => {
         status: 'published'
       };
 
-      const res = await request(app)
+      await request(app)
         .post('/api/faq')
         .set('Authorization', `Bearer ${adminToken}`)
         .send(faqData);
