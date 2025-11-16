@@ -1,12 +1,5 @@
 name: CI-CD Pipeline
 
-on:
-  push:
-    branches: [main, develop, 'feature/**']
-  pull_request:
-    branches: [main]
-  workflow_dispatch: {}
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -102,14 +95,6 @@ jobs:
         run: echo "Running integration tests..."
       - name: Deploy to production
         run: echo "Deploying to production environment..."
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Deploy to staging
-        run: echo "Deploying to staging environment..."
       - name: Run integration tests
         run: echo "Running integration tests..."
       - name: Deploy to production
