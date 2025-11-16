@@ -35,14 +35,14 @@ router.post('/signup', async (req, res) => {
     db.run(sql, [name, email, hashed], function (err) {
       if (err) {
         if (err.code === 'SQLITE_CONSTRAINT') return res.status(409).json({ message: 'Email already exists' });
-        console.error(err);
+        process.stderr.write('Error creating user: ' + err + '\n');
         return res.status(500).json({ message: 'DB error' });
       }
       const user = { id: this.lastID, name, email, role: 'viewer' };
       res.status(201).json({ user });
     });
   } catch (err) {
-    console.error(err);
+    process.stderr.write('Signup error: ' + err + '\n');
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -55,7 +55,7 @@ router.post('/login', (req, res) => {
   const sql = `SELECT * FROM users WHERE email = ?`;
   db.get(sql, [email], async (err, row) => {
     if (err) {
-      console.error(err);
+      process.stderr.write('Login DB error: ' + err + '\n');
       return res.status(500).json({ message: 'DB error' });
     }
     if (!row) return res.status(401).json({ message: 'Invalid credentials' });
@@ -74,7 +74,7 @@ router.get('/me', authenticateToken, (req, res) => {
   const sql = `SELECT id, name, email, role, createdAt FROM users WHERE id = ?`;
   db.get(sql, [req.user.id], (err, row) => {
     if (err) {
-      console.error(err);
+      process.stderr.write('Me DB error: ' + err + '\n');
       return res.status(500).json({ message: 'DB error' });
     }
     if (!row) return res.status(404).json({ message: 'User not found' });

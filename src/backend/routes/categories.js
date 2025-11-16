@@ -10,7 +10,7 @@ router.get('/', authenticateToken, (req, res) => {
   
   db.all(sql, [], (err, categories) => {
     if (err) {
-      console.error('Error fetching categories:', err);
+      process.stderr.write('Error fetching categories: ' + err + '\n');
       return res.status(500).json({ message: 'Database error' });
     }
     res.json({ categories });
@@ -25,7 +25,7 @@ router.get('/:id', authenticateToken, (req, res) => {
   
   db.get(sql, [categoryId], (err, category) => {
     if (err) {
-      console.error('Error fetching category:', err);
+      process.stderr.write('Error fetching category: ' + err + '\n');
       return res.status(500).json({ message: 'Database error' });
     }
     
@@ -56,7 +56,7 @@ router.post('/',
         if (err.code === 'SQLITE_CONSTRAINT') {
           return res.status(409).json({ message: 'Category name already exists' });
         }
-        console.error('Error creating category:', err);
+        process.stderr.write('Error creating category: ' + err + '\n');
         return res.status(500).json({ message: 'Database error' });
       }
       
@@ -86,7 +86,7 @@ router.put('/:id',
         if (err.code === 'SQLITE_CONSTRAINT') {
           return res.status(409).json({ message: 'Category name already exists' });
         }
-        console.error('Error updating category:', err);
+        process.stderr.write('Error updating category: ' + err + '\n');
         return res.status(500).json({ message: 'Database error' });
       }
       
@@ -112,7 +112,7 @@ router.delete('/:id',
     
     db.get(checkSql, [categoryId], (err, result) => {
       if (err) {
-        console.error('Error checking category usage:', err);
+        process.stderr.write('Error checking category usage: ' + err + '\n');
         return res.status(500).json({ message: 'Database error' });
       }
       
@@ -127,7 +127,7 @@ router.delete('/:id',
       
       db.run(sql, [categoryId], function(err) {
         if (err) {
-          console.error('Error deleting category:', err);
+          process.stderr.write('Error deleting category: ' + err + '\n');
           return res.status(500).json({ message: 'Database error' });
         }
         
@@ -159,7 +159,7 @@ router.get('/:id/stats', authenticateToken, (req, res) => {
   
   db.get(sql, [categoryId], (err, category) => {
     if (err) {
-      console.error('Error fetching category stats:', err);
+      process.stderr.write('Error fetching category stats: ' + err + '\n');
       return res.status(500).json({ message: 'Database error' });
     }
     

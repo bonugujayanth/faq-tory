@@ -25,14 +25,14 @@ function authenticateToken(req, res, next) {
       req.user = payload;
       return next();
     }
-    const sql = `SELECT 1 FROM token_blacklist WHERE jti = ? AND datetime(expires_at) > datetime('now')`;
+    const sql = 'SELECT 1 FROM token_blacklist WHERE jti = ? AND datetime(expires_at) > datetime(\'now\')';
     db.get(sql, [jti], (e2, row) => {
-        if (e2) {
-          return res.status(500).json({ message: 'Permission check failed' });
-        }
-        if (row) {
-          return res.status(401).json({ message: 'Token revoked' });
-        }
+      if (e2) {
+        return res.status(500).json({ message: 'Permission check failed' });
+      }
+      if (row) {
+        return res.status(401).json({ message: 'Token revoked' });
+      }
       req.user = payload;
       next();
     });
@@ -62,7 +62,7 @@ function requirePermission(resource, action) {
     
     db.get(sql, [role, resource, action], (err, row) => {
       if (err) {
-        process.stderr.write(`Permission check error: ${err}\n`);
+        process.stderr.write('Permission check error: ' + err + '\n');
         return res.status(500).json({ message: 'Permission check failed' });
       }
 
@@ -81,9 +81,11 @@ function requirePermission(resource, action) {
 
 function requireAnyRole(roles) {
   return (req, res, next) => {
-    if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Insufficient role',
         required: roles,
         userRole: req.user.role
@@ -113,8 +115,7 @@ function logAudit(action, resourceType, resourceId = null) {
         user_agent: req.get('User-Agent')
       };
       
-      const sql = `INSERT INTO audit_log (user_id, action, resource_type, resource_id, details, ip_address, user_agent) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?)`;
+      const sql = 'INSERT INTO audit_log (user_id, action, resource_type, resource_id, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)';
       db.run(sql, [
         auditData.user_id,
         auditData.action,
@@ -124,7 +125,7 @@ function logAudit(action, resourceType, resourceId = null) {
         auditData.ip_address,
         auditData.user_agent
       ], (err) => {
-        if (err) process.stderr.write(`Audit log error: ${err}\n`);
+        if (err) process.stderr.write('Audit log error: ' + err + '\n');
       });
       
       originalSend.call(this, data);
