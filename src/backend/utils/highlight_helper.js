@@ -1,4 +1,3 @@
-const lunr = require('lunr');
 const xss = require('xss'); // For sanitizing user input
 
 class HighlightHelper {

@@ -37,8 +37,7 @@ afterAll((done) => {
 
 describe('RBAC System Tests', () => {
   let adminToken, editorToken, viewerToken;
-  let adminUser, editorUser, viewerUser;
-  let testFAQId, testCategoryId;
+  let testFAQId;
 
   // Setup test users
   beforeAll(async () => {
@@ -83,10 +82,7 @@ describe('RBAC System Tests', () => {
       .post('/api/auth/login')
       .send({ email: 'viewer@test.com', password: 'password' })).body.token;
 
-    // Get user details
-    adminUser = (await request(app).get('/api/auth/me').set('Authorization', `Bearer ${adminToken}`)).body.user;
-    editorUser = (await request(app).get('/api/auth/me').set('Authorization', `Bearer ${editorToken}`)).body.user;
-    viewerUser = (await request(app).get('/api/auth/me').set('Authorization', `Bearer ${viewerToken}`)).body.user;
+    // user detail retrieval not required for these tests
   });
 
   describe('Admin Role Permissions', () => {
@@ -153,7 +149,6 @@ describe('RBAC System Tests', () => {
         .send(categoryData);
 
       expect(res.statusCode).toBe(201);
-      testCategoryId = res.body.category.id;
     });
   });
 
