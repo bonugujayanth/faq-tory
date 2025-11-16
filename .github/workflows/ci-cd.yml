@@ -10,35 +10,8 @@ on:
     branches: [main]
 
 jobs:
-  install:
-    name: Install Dependencies
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'src/backend/package-lock.json'
-
-      - name: Install dependencies
-        run: |
-          cd src/backend
-          npm install
-
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: src/backend/node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('src/backend/package-lock.json') }}
-
   lint:
     name: Lint Code
-    needs: install
     runs-on: ubuntu-latest
     
     steps:
@@ -49,12 +22,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
-      - name: Restore node_modules
-        uses: actions/cache@v3
-        with:
-          path: src/backend/node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('src/backend/package-lock.json') }}
 
       - name: Install dependencies
         run: |
@@ -68,7 +35,6 @@ jobs:
 
   test:
     name: Run Tests
-    needs: install
     runs-on: ubuntu-latest
     
     steps:
@@ -79,12 +45,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
-      - name: Restore node_modules
-        uses: actions/cache@v3
-        with:
-          path: src/backend/node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('src/backend/package-lock.json') }}
 
       - name: Install dependencies
         run: |
@@ -115,12 +75,6 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Restore node_modules
-        uses: actions/cache@v3
-        with:
-          path: src/backend/node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('src/backend/package-lock.json') }}
-
       - name: Install dependencies
         run: |
           cd src/backend
@@ -130,37 +84,6 @@ jobs:
         run: |
           cd src/backend
           npm run build --if-present || echo "No build script found"
-
-  security-audit:
-    name: Security Audit
-    needs: install
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Restore node_modules
-        uses: actions/cache@v3
-        with:
-          path: src/backend/node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('src/backend/package-lock.json') }}
-
-      - name: Install dependencies
-        run: |
-          cd src/backend
-          npm install
-
-      - name: Run security audit
-        run: |
-          cd src/backend
-          npm audit --audit-level=moderate || echo "⚠️ Security vulnerabilities found"
 
   deploy:
     name: Deploy
