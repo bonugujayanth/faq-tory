@@ -11,9 +11,6 @@ db.run(`
   )
 `);
 
-// Helper to get current timestamp in SQLite format
-const getCurrentTimestamp = () => new Date().toISOString();
-
 class QA {
   // Create a new Q/A entry
   static create(question, answer) {

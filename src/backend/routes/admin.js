@@ -31,7 +31,7 @@ router.get('/users',
 
     db.all(sql, params, (err, users) => {
       if (err) {
-        console.error('Error fetching users:', err);
+        process.stderr.write(`Error fetching users: ${err}\n`);
         return res.status(500).json({ message: 'Database error' });
       }
       res.json({ users });
@@ -54,7 +54,7 @@ router.get('/users/:id',
     
     db.get(sql, [userId], (err, user) => {
       if (err) {
-        console.error('Error fetching user:', err);
+        process.stderr.write(`Error fetching user: ${err}\n`);
         return res.status(500).json({ message: 'Database error' });
       }
       
@@ -92,7 +92,7 @@ router.post('/users',
           if (err.code === 'SQLITE_CONSTRAINT') {
             return res.status(409).json({ message: 'Email already exists' });
           }
-          console.error('Error creating user:', err);
+          process.stderr.write(`Error creating user: ${err}\n`);
           return res.status(500).json({ message: 'Database error' });
         }
         
@@ -100,7 +100,7 @@ router.post('/users',
         res.status(201).json({ user });
       });
     } catch (err) {
-      console.error('Error hashing password:', err);
+      process.stderr.write(`Error hashing password: ${err}\n`);
       res.status(500).json({ message: 'Server error' });
     }
   }
@@ -128,7 +128,7 @@ router.put('/users/:id/role',
     
     db.run(sql, [role, userId], function(err) {
       if (err) {
-        console.error('Error updating user role:', err);
+        process.stderr.write(`Error updating user role: ${err}\n`);
         return res.status(500).json({ message: 'Database error' });
       }
       
@@ -158,7 +158,7 @@ router.delete('/users/:id',
     
     db.run(sql, [userId], function(err) {
       if (err) {
-        console.error('Error deleting user:', err);
+        process.stderr.write(`Error deleting user: ${err}\n`);
         return res.status(500).json({ message: 'Database error' });
       }
       
@@ -190,7 +190,7 @@ router.get('/stats',
     
     db.get(userStatsSql, [], (err, userStats) => {
       if (err) {
-        console.error('Error fetching user stats:', err);
+        process.stderr.write(`Error fetching user stats: ${err}\n`);
         return res.status(500).json({ message: 'Database error' });
       }
       
@@ -209,7 +209,7 @@ router.get('/stats',
       
       db.get(faqStatsSql, [], (err, faqStats) => {
         if (err) {
-          console.error('Error fetching FAQ stats:', err);
+          process.stderr.write(`Error fetching FAQ stats: ${err}\n`);
           return res.status(500).json({ message: 'Database error' });
         }
         
@@ -231,7 +231,7 @@ router.get('/stats',
         
         db.all(activitySql, [], (err, activities) => {
           if (err) {
-            console.error('Error fetching activities:', err);
+            process.stderr.write(`Error fetching activities: ${err}\n`);
             return res.status(500).json({ message: 'Database error' });
           }
           
@@ -281,7 +281,7 @@ router.get('/audit',
 
     db.all(sql, params, (err, logs) => {
       if (err) {
-        console.error('Error fetching audit log:', err);
+        process.stderr.write(`Error fetching audit log: ${err}\n`);
         return res.status(500).json({ message: 'Database error' });
       }
       

@@ -11,7 +11,7 @@ if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
-    console.error('Could not open database', err);
+    process.stderr.write(`Could not open database ${err}\n`);
     process.exit(1);
   }
 });
@@ -149,22 +149,22 @@ db.serialize(() => {
   // First create all tables
   db.exec(initSql, (err) => {
     if (err) {
-      console.error('Error creating tables', err);
+      process.stderr.write(`Error creating tables ${err}\n`);
       return;
     }
     
     // Then insert permissions
     db.exec(permissionsSql, (err) => {
       if (err) {
-        console.error('Error inserting permissions', err);
+        process.stderr.write(`Error inserting permissions ${err}\n`);
         return;
       }
       
       // Finally insert categories
       db.exec(categoriesSql, (err) => {
         if (err) {
-          console.error('Error inserting categories', err);
-        }
+            process.stderr.write(`Error inserting categories ${err}\n`);
+          }
       });
     });
   });
