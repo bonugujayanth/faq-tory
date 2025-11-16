@@ -315,12 +315,15 @@ jobs:
             BRANCH_CREATOR=""
             CREATOR_COMMIT=""
             
+            # Sanitize branch name for use in file paths (replace / with _)
+            SAFE_BRANCH_NAME=$(echo "$BRANCH_NAME" | tr '/' '_' | tr ' ' '_')
+            
             # Build patch-id map for parent branch (for cherry-pick detection)
-            > "/tmp/parent_patches_${BRANCH_NAME}.txt"
+            > "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
             git log "origin/$BEST_PARENT" --format='%H' 2>/dev/null | while read parent_commit; do
               PATCH_ID=$(git show "$parent_commit" 2>/dev/null | git patch-id --stable 2>/dev/null | cut -d' ' -f1 || echo "")
               if [ -n "$PATCH_ID" ]; then
-                echo "$PATCH_ID|$parent_commit" >> "/tmp/parent_patches_${BRANCH_NAME}.txt"
+                echo "$PATCH_ID|$parent_commit" >> "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
               fi
             done
             
@@ -349,7 +352,7 @@ jobs:
               COMMIT_PATCH_ID=$(git show "$commit_hash" 2>/dev/null | git patch-id --stable 2>/dev/null | cut -d' ' -f1 || echo "")
               IS_CHERRY_PICK=false
               
-              if [ -n "$COMMIT_PATCH_ID" ] && grep -q "^$COMMIT_PATCH_ID|" "/tmp/parent_patches_${BRANCH_NAME}.txt" 2>/dev/null; then
+              if [ -n "$COMMIT_PATCH_ID" ] && grep -q "^$COMMIT_PATCH_ID|" "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt" 2>/dev/null; then
                 IS_CHERRY_PICK=true
               fi
               
@@ -366,7 +369,7 @@ jobs:
             done
             
             # Clean up temp file
-            rm -f "/tmp/parent_patches_${BRANCH_NAME}.txt"
+            rm -f "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
             
             # Check if we found a creator
             if ! grep -q "^$BRANCH_NAME|" branch_ownership.map 2>/dev/null; then
