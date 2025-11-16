@@ -249,7 +249,29 @@ jobs:
           echo "  ✅ $DEFAULT_BRANCH → @$CREATOR (root branch)" >&2
           echo "" >&2
           
-          # STEP 2: Analyze all other branches using GitHub's merge-base logic
+          # STEP 2: Pre-check for branches with no commits at all
+          echo "🔍 Pre-checking branches for commit existence..." >&2
+          > "/tmp/branches_with_commits.txt"
+          while read branch; do
+            [ "$branch" = "origin/HEAD" ] && continue
+            BRANCH_NAME="${branch#origin/}"
+            [ "$BRANCH_NAME" = "$DEFAULT_BRANCH" ] && continue
+            
+            # Check if branch has ANY commits
+            COMMIT_COUNT=$(git rev-list --count "$branch" 2>/dev/null || echo "0")
+            if [ "$COMMIT_COUNT" -gt 0 ]; then
+              echo "$branch" >> "/tmp/branches_with_commits.txt"
+            else
+              # Branch exists but has no commits - mark as empty
+              echo "$BRANCH_NAME|unknown||empty|ORPHAN" >> branch_ownership.map
+              echo "$BRANCH_NAME|EMPTY|none|0|Branch has no commits" >> branch_relationships.txt
+              echo "  ⚠️  $BRANCH_NAME → EMPTY (no commits)" >&2
+            fi
+          done < all_branches_sorted.txt
+          
+          echo "" >&2
+          
+          # STEP 3: Analyze all other branches using GitHub's merge-base logic
           echo "🔍 Analyzing branch relationships..." >&2
           PROCESSED=0
           
@@ -447,12 +469,53 @@ jobs:
             if [ $((PROCESSED % 5)) -eq 0 ]; then
               echo "  ⏳ Processed $PROCESSED branches..." >&2
             fi
-          done < all_branches_sorted.txt
+          done < "/tmp/branches_with_commits.txt"
           
           echo "" >&2
           echo "✅ Branch analysis complete ($PROCESSED branches)" >&2
           
-          # STEP 5: Detect merge commits (GitHub graph merge lines)
+          # STEP 5.5: Final pass - use GitHub API to get branch creators for remaining unknowns
+          echo "" >&2
+          echo "🔍 Using GitHub API for remaining unknown branches..." >&2
+          
+          UNKNOWN_COUNT=$(grep "|unknown|" branch_ownership.map 2>/dev/null | wc -l || echo "0")
+          if [ "$UNKNOWN_COUNT" -gt 0 ]; then
+            echo "  Found $UNKNOWN_COUNT unknown branches, checking GitHub API..." >&2
+            
+            grep "|unknown|" branch_ownership.map 2>/dev/null | cut -d'|' -f1 | while read unknown_branch; do
+              # Get the branch creator from GitHub API (who created the ref)
+              BRANCH_CREATOR=$(gh api "repos/${{ github.repository }}/git/refs/heads/$unknown_branch" 2>/dev/null | \
+                jq -r '.object.sha' 2>/dev/null | while read sha; do
+                  grep "^$sha|" commit_to_github.map 2>/dev/null | cut -d'|' -f2 | head -1
+                done || echo "")
+              
+              if [ -z "$BRANCH_CREATOR" ] || [ "$BRANCH_CREATOR" = "unknown" ]; then
+                # Try getting ALL commits on the branch and find most frequent contributor
+                BRANCH_CREATOR=$(git log "origin/$unknown_branch" --format='%H' 2>/dev/null | while read ch; do
+                  grep "^$ch|" commit_to_github.map 2>/dev/null | cut -d'|' -f2
+                done | grep -v "^unknown$" | grep -v "^$" | sort | uniq -c | sort -rn | head -1 | awk '{print $2}' || echo "")
+              fi
+              
+              if [ -n "$BRANCH_CREATOR" ] && [ "$BRANCH_CREATOR" != "unknown" ]; then
+                # Update the branch ownership map
+                PARENT_INFO=$(grep "^$unknown_branch|" branch_ownership.map | cut -d'|' -f5)
+                FIRST_COMMIT=$(git log "origin/$unknown_branch" --format='%H' 2>/dev/null | tail -1 || echo "")
+                
+                # Remove old entry
+                grep -v "^$unknown_branch|" branch_ownership.map > "/tmp/branch_ownership_temp.map"
+                mv "/tmp/branch_ownership_temp.map" branch_ownership.map
+                
+                # Add new entry with discovered creator
+                echo "$unknown_branch|$BRANCH_CREATOR|$FIRST_COMMIT|api|$PARENT_INFO" >> branch_ownership.map
+                echo "  ✅ Updated $unknown_branch → @$BRANCH_CREATOR (via API)" >&2
+              fi
+            done
+            
+            REMAINING_UNKNOWN=$(grep "|unknown|" branch_ownership.map 2>/dev/null | wc -l || echo "0")
+            echo "  ✅ Resolved $((UNKNOWN_COUNT - REMAINING_UNKNOWN)) unknowns, $REMAINING_UNKNOWN remain" >&2
+          fi
+          
+          # STEP 6: Detect merge commits (GitHub graph merge lines)
           echo "" >&2
           echo "🔀 Detecting merge commits..." >&2
           
