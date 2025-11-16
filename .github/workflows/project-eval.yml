@@ -327,15 +327,23 @@ jobs:
               fi
             done
             
-            # Find first non-org, non-cherry-picked commit
-            FOUND=false
+            # Strategy: Try multiple passes with decreasing strictness
+            # Pass 1: Non-org, non-cherry-picked commits
+            # Pass 2: Non-org commits (allow cherry-picks)
+            # Pass 3: Any commit (including org owners)
+            # Pass 4: Use most frequent contributor
+            
+            # PASS 1: Find first non-org, non-cherry-picked commit
             echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
               [ -z "$commit_hash" ] && continue
-              [ "$FOUND" = "true" ] && continue
+              [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
               
               # Get commit info
               COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
               GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
+              
+              # Skip unknown
+              [ "$GH_USER" = "unknown" ] && continue
               
               # Filter 1: Skip org owners
               IS_ORG=false
@@ -359,28 +367,81 @@ jobs:
               [ "$IS_CHERRY_PICK" = "true" ] && continue
               
               # This is the branch creator!
-              BRANCH_CREATOR="$GH_USER"
-              CREATOR_COMMIT="$commit_hash"
-              FOUND=true
-              
-              # Write to map file
-              echo "$BRANCH_NAME|$BRANCH_CREATOR|$CREATOR_COMMIT|detected|$BEST_PARENT" >> branch_ownership.map
-              echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|$BEST_DISTANCE|Branched from $BEST_PARENT ($BEST_DISTANCE commits ahead)" >> branch_relationships.txt
+              echo "$GH_USER|$commit_hash|pass1" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
             done
             
-            # Clean up temp file
-            rm -f "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
-            
-            # Check if we found a creator
-            if ! grep -q "^$BRANCH_NAME|" branch_ownership.map 2>/dev/null; then
-              echo "$BRANCH_NAME|unknown||filtered|$BEST_PARENT" >> branch_ownership.map
-              echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|$BEST_DISTANCE|All commits filtered (org/cherry-picked)" >> branch_relationships.txt
-              echo "  ⚠️  $BRANCH_NAME → filtered (parent: $BEST_PARENT)" >&2
-            else
-              CREATOR_LINE=$(grep "^$BRANCH_NAME|" branch_ownership.map | head -1)
-              FOUND_CREATOR=$(echo "$CREATOR_LINE" | cut -d'|' -f2)
-              echo "  🌿 $BRANCH_NAME → @$FOUND_CREATOR (parent: $BEST_PARENT, distance: $BEST_DISTANCE)" >&2
+            # PASS 2: If no creator found, try non-org commits (allow cherry-picks)
+            if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+              echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
+                [ -z "$commit_hash" ] && continue
+                [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
+                
+                COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
+                GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
+                
+                [ "$GH_USER" = "unknown" ] && continue
+                
+                # Skip org owners
+                IS_ORG=false
+                for org_owner in "${ORG_OWNERS[@]}"; do
+                  if [ "$GH_USER" = "$org_owner" ]; then
+                    IS_ORG=true
+                    break
+                  fi
+                done
+                
+                [ "$IS_ORG" = "true" ] && continue
+                
+                # Accept this commit even if cherry-picked
+                echo "$GH_USER|$commit_hash|pass2" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+              done
             fi
+            
+            # PASS 3: If still no creator, try ANY commit (including org owners, but not unknown)
+            if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+              echo "$DIVERGENCE_COMMITS" | while read commit_hash; do
+                [ -z "$commit_hash" ] && continue
+                [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ] && continue
+                
+                COMMIT_INFO=$(grep "^$commit_hash|" commit_to_github.map 2>/dev/null || echo "")
+                GH_USER=$(echo "$COMMIT_INFO" | cut -d'|' -f2)
+                
+                [ "$GH_USER" = "unknown" ] && continue
+                
+                # Accept any known user
+                echo "$GH_USER|$commit_hash|pass3" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+              done
+            fi
+            
+            # PASS 4: If STILL no creator, use most frequent contributor
+            if [ ! -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+              MOST_FREQUENT=$(git log "origin/$BRANCH_NAME" --format='%H' 2>/dev/null | while read ch; do
+                grep "^$ch|" commit_to_github.map 2>/dev/null | cut -d'|' -f2
+              done | grep -v "^unknown$" | sort | uniq -c | sort -rn | head -1 | awk '{print $2}')
+              
+              if [ -n "$MOST_FREQUENT" ]; then
+                FIRST_COMMIT=$(echo "$DIVERGENCE_COMMITS" | head -1)
+                echo "$MOST_FREQUENT|$FIRST_COMMIT|pass4" > "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+              fi
+            fi
+            
+            # Read the result
+            if [ -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt" ]; then
+              IFS='|' read BRANCH_CREATOR CREATOR_COMMIT PASS_NUM < "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
+              
+              echo "$BRANCH_NAME|$BRANCH_CREATOR|$CREATOR_COMMIT|detected|$BEST_PARENT" >> branch_ownership.map
+              echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|$BEST_DISTANCE|Branched from $BEST_PARENT ($BEST_DISTANCE commits ahead)" >> branch_relationships.txt
+              echo "  🌿 $BRANCH_NAME → @$BRANCH_CREATOR (parent: $BEST_PARENT, distance: $BEST_DISTANCE, $PASS_NUM)" >&2
+            else
+              # Absolute fallback
+              echo "$BRANCH_NAME|unknown||filtered|$BEST_PARENT" >> branch_ownership.map
+              echo "$BRANCH_NAME|CHILD_OF|$BEST_PARENT|$BEST_DISTANCE|No identifiable creator found" >> branch_relationships.txt
+              echo "  ⚠️  $BRANCH_NAME → unknown (parent: $BEST_PARENT, all passes failed)" >&2
+            fi
+            
+            # Clean up temp files
+            rm -f "/tmp/parent_patches_${SAFE_BRANCH_NAME}.txt"
+            rm -f "/tmp/branch_creator_${SAFE_BRANCH_NAME}.txt"
             
             # Progress indicator
             if [ $((PROCESSED % 5)) -eq 0 ]; then
