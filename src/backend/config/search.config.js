@@ -1,12 +1,9 @@
 /**
  * Search Engine Configuration
- * Supports: Lunr (default), Elasticsearch, Meilisearch, Solr
+ * Supports: Lunr with BM25 and TF-IDF algorithms
  */
 
 const config = {
-  // Search engine to use: 'lunr', 'elasticsearch', 'meilisearch', 'solr'
-  engine: process.env.SEARCH_ENGINE || 'lunr',
-  
   // Relevance algorithm: 'tfidf', 'bm25'
   relevanceAlgorithm: process.env.SEARCH_RELEVANCE_ALGORITHM || 'bm25',
   
@@ -20,29 +17,6 @@ const config = {
   tfidf: {
     useIdf: true,
     normalization: 'cosine'  // 'cosine', 'none', 'l2'
-  },
-  
-  // Elasticsearch configuration
-  elasticsearch: {
-    host: process.env.ELASTICSEARCH_HOST || 'http://localhost:9200',
-    index: process.env.ELASTICSEARCH_INDEX || 'faq_index',
-    auth: {
-      username: process.env.ELASTICSEARCH_USERNAME,
-      password: process.env.ELASTICSEARCH_PASSWORD
-    }
-  },
-  
-  // Meilisearch configuration
-  meilisearch: {
-    host: process.env.MEILISEARCH_HOST || 'http://localhost:7700',
-    apiKey: process.env.MEILISEARCH_API_KEY,
-    index: process.env.MEILISEARCH_INDEX || 'faqs'
-  },
-  
-  // Solr configuration
-  solr: {
-    host: process.env.SOLR_HOST || 'http://localhost:8983/solr',
-    core: process.env.SOLR_CORE || 'faq_core'
   },
   
   // Field weights for relevance scoring

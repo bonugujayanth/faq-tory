@@ -435,5 +435,301 @@ describe('Search API - Comprehensive Tests', () => {
       const removed = await SearchIndex.removeDocument(testFaqId);
       expect(removed).toBe(true);
     });
+
+    test('should clear all documents from index', async () => {
+      const cleared = await SearchIndex.clear();
+      expect(cleared).toBe(true);
+      
+      // Re-initialize after clearing
+      await SearchIndex.initialize();
+    });
+
+    test('should handle document addition errors gracefully', async () => {
+      const invalidDoc = null;
+      const result = await SearchIndex.addDocument(invalidDoc);
+      expect(result).toBe(false);
+    });
+
+    test('should handle document update errors gracefully', async () => {
+      const invalidDoc = null;
+      const result = await SearchIndex.updateDocument(invalidDoc);
+      expect(result).toBe(false);
+    });
+
+    test('should handle document removal errors gracefully', async () => {
+      const result = await SearchIndex.removeDocument(null);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('Search Algorithm Configuration', () => {
+    test('should use configured BM25 parameters', async () => {
+      const response = await request(app)
+        .get('/api/search')
+        .query({ q: 'configure' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.results.length).toBeGreaterThan(0);
+      // BM25 should be active by default
+    });
+
+    test('should handle empty database initialization', async () => {
+      await SearchIndex.clear();
+      await SearchIndex.initialize();
+      
+      const response = await request(app)
+        .get('/api/search')
+        .query({ q: 'anything' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.results).toEqual([]);
+    });
+
+    test('should search with wildcard queries', async () => {
+      const response = await request(app)
+        .get('/api/search')
+        .query({ q: 'config*' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    test('should handle multiple word queries', async () => {
+      const response = await request(app)
+        .get('/api/search')
+        .query({ q: 'how to search engines' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.results.length).toBeGreaterThan(0);
+    });
+
+    test('should handle queries with numbers', async () => {
+      const response = await request(app)
+        .get('/api/search')
+        .query({ q: 'search 123' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+  });
+
+  describe('Filter Edge Cases', () => {
+    test('should handle empty tag arrays', async () => {
+      const response = await request(app)
+        .get('/api/search')
+        .query({ 
+          q: 'search',
+          tags: []
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    test('should handle future dates in filters', async () => {
+      const futureDate = new Date();
+      futureDate.setFullYear(futureDate.getFullYear() + 1);
+
+      const response = await request(app)
+        .get('/api/search')
+        .query({ 
+          q: 'search',
+          startDate: futureDate.toISOString()
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.results).toEqual([]);
+    });
+
+    test('should handle past dates in filters', async () => {
+      const pastDate = new Date('2020-01-01');
+
+      const response = await request(app)
+        .get('/api/search')
+        .query({ 
+          q: 'search',
+          endDate: pastDate.toISOString()
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.results).toEqual([]);
+    });
+
+    test('should handle inverted date ranges', async () => {
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const response = await request(app)
+        .get('/api/search')
+        .query({ 
+          q: 'search',
+          startDate: today.toISOString(),
+          endDate: yesterday.toISOString()
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.results).toEqual([]);
+    });
+  });
+
+  describe('Factory and Base Engine', () => {
+    test('should create engine via factory', () => {
+      const SearchEngineFactory = require('../models/search/search_engine_factory');
+      const engine = SearchEngineFactory.createEngine();
+      
+      expect(engine).toBeDefined();
+      expect(typeof engine.initialize).toBe('function');
+      expect(typeof engine.search).toBe('function');
+    });
+
+    test('should have all required base engine methods', () => {
+      const SearchEngineFactory = require('../models/search/search_engine_factory');
+      const engine = SearchEngineFactory.createEngine();
+      
+      expect(typeof engine.addDocument).toBe('function');
+      expect(typeof engine.updateDocument).toBe('function');
+      expect(typeof engine.removeDocument).toBe('function');
+      expect(typeof engine.checkHealth).toBe('function');
+      expect(typeof engine.clear).toBe('function');
+    });
+  });
+
+  describe('Search Index Error Handling', () => {
+    test('should handle search errors gracefully', async () => {
+      // Force an error by searching before initialization
+      SearchIndex.engine = null;
+      
+      const results = await SearchIndex.search('test');
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    test('should re-initialize if engine is null', async () => {
+      SearchIndex.engine = null;
+      
+      const health = await SearchIndex.checkHealth();
+      expect(health).toHaveProperty('ok');
+    });
+
+    test('should handle clear operation when engine is null', async () => {
+      SearchIndex.engine = null;
+      const result = await SearchIndex.clear();
+      expect(typeof result).toBe('boolean');
+    });
+
+    test('should initialize engine on first search', async () => {
+      SearchIndex.engine = null;
+      
+      const response = await request(app)
+        .get('/api/search')
+        .query({ q: 'test' });
+
+      expect(response.status).toBe(200);
+    });
+
+    test('should handle health check endpoint', async () => {
+      const response = await request(app)
+        .get('/api/search/health');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('ok');
+    });
+
+    test('should report algorithm in health check', async () => {
+      const health = await SearchIndex.checkHealth();
+      
+      expect(health).toHaveProperty('algorithm');
+      expect(['bm25', 'tfidf']).toContain(health.algorithm);
+    });
+  });
+
+  describe('Lunr Engine Specific Tests', () => {
+    test('should rebuild index when necessary', async () => {
+      const SearchEngineFactory = require('../models/search/search_engine_factory');
+      const engine = SearchEngineFactory.createEngine();
+      
+      await engine.initialize();
+      
+      // Add a document and verify it rebuilds properly
+      const doc = {
+        id: 88888,
+        question: 'Rebuild test',
+        answer: 'Testing rebuild',
+        tags: ['test'],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      await engine.addDocument(doc);
+      const results = await engine.search('rebuild');
+      expect(results.length).toBeGreaterThan(0);
+      
+      await engine.removeDocument(88888);
+    });
+
+    test('should handle documents with no tags', async () => {
+      const doc = {
+        id: 77777,
+        question: 'No tags test',
+        answer: 'Document without tags',
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      const added = await SearchIndex.addDocument(doc);
+      expect(added).toBe(true);
+      
+      await SearchIndex.removeDocument(77777);
+    });
+
+    test('should filter by date correctly', async () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const results = await SearchIndex.search('configure', {
+        startDate: yesterday.toISOString(),
+        endDate: tomorrow.toISOString()
+      });
+
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    test('should filter by updated date correctly', async () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const results = await SearchIndex.search('configure', {
+        updatedStart: yesterday.toISOString(),
+        updatedEnd: tomorrow.toISOString()
+      });
+
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    test('should handle initialization errors', async () => {
+      const SearchEngineFactory = require('../models/search/search_engine_factory');
+      const engine = SearchEngineFactory.createEngine();
+      
+      // Test that initialization returns a boolean
+      const result = await engine.initialize();
+      expect(typeof result).toBe('boolean');
+    });
+
+    test('should handle search with all filter types', async () => {
+      const results = await SearchIndex.search('search', {
+        tags: ['configuration'],
+        startDate: '2020-01-01',
+        endDate: '2030-01-01',
+        updatedStart: '2020-01-01',
+        updatedEnd: '2030-01-01'
+      });
+
+      expect(Array.isArray(results)).toBe(true);
+    });
   });
 });

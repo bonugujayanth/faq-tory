@@ -1,13 +1,12 @@
 const lunr = require('lunr');
-const BaseSearchEngine = require('./base_search_engine');
 const db = require('../db');
 
 /**
  * Lunr.js Search Engine with BM25 and TF-IDF support
  */
-class LunrSearchEngine extends BaseSearchEngine {
+class LunrSearchEngine {
   constructor(config) {
-    super(config);
+    this.config = config;
     this.instance = null;
     this.documents = new Map();
     this.algorithm = config.relevanceAlgorithm || 'bm25';
