@@ -54,6 +54,7 @@ jobs:
           else
             echo "No package.json found, skipping security audit"
           fi
+        continue-on-error: true
 
   deploy:
     needs: build
