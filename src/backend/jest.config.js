@@ -11,7 +11,9 @@ module.exports = {
   collectCoverageFrom: [
     'models/search/**/*.js',
     'models/search_index.js',
+    'models/feedback.js',
     'routes/search.js',
+    'routes/feedback.js',
     'config/search.config.js'
   ]
 };
