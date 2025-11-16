@@ -12,63 +12,48 @@ router.get('/health', async (req, res) => {
 });
 
 // Search Q/A entries with filtering
-router.get('/search', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const startTime = Date.now();
-    const { q, tags, createdAfter, createdBefore, updatedAfter, updatedBefore } = req.query;
+    const { q, tags, createdAfter, createdBefore, updatedAfter, updatedBefore, startDate, endDate, updatedStart, updatedEnd } = req.query;
     
     if (!q) {
       return res.status(400).json({ error: 'Search query is required' });
     }
 
-    // Parse and validate filters
-    try {
-      const filters = FilterValidator.validateFilters({
-        tags: tags ? JSON.parse(tags) : undefined,
-        createdAfter,
-        createdBefore,
-        updatedAfter,
-        updatedBefore
-      });
-
-      const results = await SearchIndex.search(q, filters);
-      
-      // Add highlighting and snippets
-      const enhancedResults = results.map(result => ({
-        ...result,
-        highlightedQuestion: HighlightHelper.highlightText(result.question, q),
-        highlightedAnswer: HighlightHelper.highlightText(result.answer, q),
-        snippet: HighlightHelper.generateSnippet(result.answer, q)
-      }));
-      
-      res.json({ 
-        results: enhancedResults,
-        filters: filters, // Return the applied filters for transparency
-        metadata: {
-          engine: 'lunr.js',
-          algorithm: 'bm25',
-          parameters: {
-            k1: 1.5,  // Term frequency saturation
-            b: 0.75,  // Length normalization
-            boosts: {
-              question: 10,
-              answer: 3,
-              tags: 5
-            }
-          },
-          totalResults: enhancedResults.length,
-          executionTime: Date.now() - startTime
+    // Parse tags - handle both comma-separated strings and arrays
+    let parsedTags = [];
+    if (tags) {
+      if (Array.isArray(tags)) {
+        parsedTags = tags;
+      } else if (typeof tags === 'string') {
+        try {
+          parsedTags = JSON.parse(tags);
+        } catch {
+          parsedTags = tags.split(',').map(t => t.trim()).filter(t => t);
         }
-      });
-    } catch (validationErr) {
-      return res.status(400).json({ 
-        error: 'Invalid filter parameters',
-        details: validationErr.message
-      });
+      }
     }
+
+    // Build filters with parameter aliases
+    const filters = {
+      tags: parsedTags.length > 0 ? parsedTags : undefined,
+      createdAfter: createdAfter || startDate,
+      createdBefore: createdBefore || endDate,
+      updatedAfter: updatedAfter || updatedStart,
+      updatedBefore: updatedBefore || updatedEnd
+    };
+
+    const results = await SearchIndex.search(q, filters);
+    
+    res.json({ 
+      success: true,
+      results: results,
+      count: results.length
+    });
   } catch (err) {
     console.error('Search error:', err);
-    res.status(500).json({ error: 'Search failed' });
+    res.status(500).json({ success: false, error: 'Search failed' });
   }
 });
 
