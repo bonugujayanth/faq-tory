@@ -23,7 +23,7 @@ router.get('/', authenticateToken, (req, res) => {
   if (req.user.role === 'editor') {
     if (!filters.status || filters.status === 'published') {
       // Show published FAQs and editor's own drafts
-      const sql = `
+      let sql = `
         SELECT f.*, c.name as category_name, u.name as author_name
         FROM faqs f
         LEFT JOIN categories c ON f.category_id = c.id
