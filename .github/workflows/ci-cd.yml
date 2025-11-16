@@ -38,7 +38,7 @@ jobs:
 
       - name: Run tests
         working-directory: ./src/backend
-        run: npm test -- --testPathPattern="qa.*test\.js|auth\.test\.js" --testPathIgnorePatterns="rbac" --forceExit
+        run: npm test -- tests/qa.import.test.js tests/qa.export.test.js tests/qa.import.validation.test.js tests/auth.test.js --forceExit
 
       - name: Build application
         working-directory: ./src/backend
