@@ -2,84 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ '**' ]
+    branches: ['**']
   pull_request:
-    branches: [ '**' ]
-
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install backend deps
-        working-directory: src/backend
-        run: npm install --no-audit --no-fund
-      - name: Run ESLint
-        working-directory: src/backend
-        run: npm run lint || true
-
-  test:
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install backend deps
-        working-directory: src/backend
-        run: npm install --no-audit --no-fund
-      - name: Run tests with coverage
-        working-directory: src/backend
-        run: npm run test:coverage || true
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-coverage
-          path: src/backend/coverage || src/backend/coverage
-
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install backend deps
-        working-directory: src/backend
-        run: npm install --no-audit --no-fund
-      - name: Run build (if present)
-        working-directory: src/backend
-        run: |
-          if npm run | grep -q " build"; then
-            npm run build || true
-          else
-            echo "No build script defined; skipping"
-          fi
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-build
-          path: src/backend/dist || src/backend
-name: CI-CD Pipeline
-
-on:
-  push: {}
-  pull_request: {}
+    branches: ['**']
 
 jobs:
   lint:
@@ -139,13 +64,20 @@ jobs:
             echo "No package.json found, skipping npm install"
           fi
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
           if [ -f package.json ] && npm list --depth=0 | grep -q jest; then
-            npm test
+            npm run test:coverage
           else
             echo "No tests configured, skipping..."
           fi
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: src/backend/coverage
 
   build:
     name: Build
@@ -187,3 +119,20 @@ jobs:
           else
             echo "No package.json found, skipping security audit"
           fi
+
+  deploy:
+    name: Deploy (upload artifact)
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: src/backend/dist
