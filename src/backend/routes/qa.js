@@ -25,7 +25,8 @@ const upload = multer({
 });
 
 // DFBTR-169: Import Q/A data via CSV/JSON
-router.post('/import', authenticateToken, upload.single('file'), async (req, res) => {
+// multer runs first to consume the multipart stream, then auth checks
+router.post('/import', upload.single('file'), authenticateToken, async (req, res) => {
   try {
     // Check if user is admin
     if (req.user.role !== 'admin') {

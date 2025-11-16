@@ -1,5 +1,6 @@
 const express = require('express');
 const FAQ = require('../models/faq');
+const HighlightHelper = require('../utils/highlight_helper');
 const { authenticateToken, requirePermission, logAudit } = require('../middleware/auth');
 
 const router = express.Router();
@@ -88,6 +89,17 @@ router.get('/search', authenticateToken, (req, res) => {
       console.error('Error searching FAQs:', err);
       return res.status(500).json({ message: 'Database error' });
     }
+
+    // If highlighting requested, generate safe highlighted snippets
+    const wantHighlight = req.query.highlight !== 'false';
+    if (wantHighlight) {
+      faqs = faqs.map(faq => {
+        const snippetQuestion = HighlightHelper.generateSnippet(faq.question || '', query);
+        const snippetAnswer = HighlightHelper.generateSnippet(faq.answer || '', query);
+        return { ...faq, snippet_question: snippetQuestion, snippet_answer: snippetAnswer };
+      });
+    }
+
     res.json({ faqs, query, total: faqs.length });
   });
 });

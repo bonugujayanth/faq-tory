@@ -1,18 +1,39 @@
 const jwt = require('jsonwebtoken');
 const db = require('../models/db');
+const fs = require('fs');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
 
+function _cleanupFileIfPresent(req) {
+  try {
+    if (req && req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+  } catch (e) {
+    // best-effort cleanup; don't break auth flow
+    console.error('Failed to cleanup uploaded file after auth failure:', e.message || e);
+  }
+}
+
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'] || req.headers['Authorization'];
-  if (!authHeader) return res.status(401).json({ message: 'No token provided' });
+  if (!authHeader) {
+    _cleanupFileIfPresent(req);
+    return res.status(401).json({ message: 'No token provided' });
+  }
   const parts = authHeader.split(' ');
   const token = parts.length === 2 && parts[0] === 'Bearer' ? parts[1] : null;
-  if (!token) return res.status(401).json({ message: 'Invalid token format' });
+  if (!token) {
+    _cleanupFileIfPresent(req);
+    return res.status(401).json({ message: 'Invalid token format' });
+  }
 
   jwt.verify(token, JWT_SECRET, (err, payload) => {
-    if (err) return res.status(401).json({ message: 'Invalid token' });
+    if (err) {
+      _cleanupFileIfPresent(req);
+      return res.status(401).json({ message: 'Invalid token' });
+    }
     // Check blacklist for jti
     const jti = payload.jti;
     if (!jti) {
@@ -21,8 +42,14 @@ function authenticateToken(req, res, next) {
     }
     const sql = `SELECT 1 FROM token_blacklist WHERE jti = ? AND datetime(expires_at) > datetime('now')`;
     db.get(sql, [jti], (e2, row) => {
-      if (e2) return res.status(500).json({ message: 'Permission check failed' });
-      if (row) return res.status(401).json({ message: 'Token revoked' });
+      if (e2) {
+        _cleanupFileIfPresent(req);
+        return res.status(500).json({ message: 'Permission check failed' });
+      }
+      if (row) {
+        _cleanupFileIfPresent(req);
+        return res.status(401).json({ message: 'Token revoked' });
+      }
       req.user = payload;
       next();
     });
