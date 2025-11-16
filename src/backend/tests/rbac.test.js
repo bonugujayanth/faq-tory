@@ -44,7 +44,7 @@ describe('RBAC System Tests', () => {
     // Create admin user
     const adminRes = await request(app)
       .post('/api/auth/signup')
-      .send({ name: 'Admin User', email: 'admin@test.com', password: 'password' });
+      .send({ name: 'Admin User', email: 'admin@test.com', password: 'Password1!' });
     
     // Update admin role
     const db = require('../models/db');
@@ -54,12 +54,12 @@ describe('RBAC System Tests', () => {
     
     adminToken = adminRes.body.user ? (await request(app)
       .post('/api/auth/login')
-      .send({ email: 'admin@test.com', password: 'password' })).body.token : null;
+      .send({ email: 'admin@test.com', password: 'Password1!' })).body.token : null;
 
     // Create editor user
     await request(app)
       .post('/api/auth/signup')
-      .send({ name: 'Editor User', email: 'editor@test.com', password: 'password' });
+      .send({ name: 'Editor User', email: 'editor@test.com', password: 'Password1!' });
     
     await new Promise((resolve) => {
       db.run('UPDATE users SET role = ? WHERE email = ?', ['editor', 'editor@test.com'], resolve);
@@ -67,12 +67,12 @@ describe('RBAC System Tests', () => {
     
     editorToken = (await request(app)
       .post('/api/auth/login')
-      .send({ email: 'editor@test.com', password: 'password' })).body.token;
+      .send({ email: 'editor@test.com', password: 'Password1!' })).body.token;
 
     // Create viewer user
     await request(app)
       .post('/api/auth/signup')
-      .send({ name: 'Viewer User', email: 'viewer@test.com', password: 'password' });
+      .send({ name: 'Viewer User', email: 'viewer@test.com', password: 'Password1!' });
     
     await new Promise((resolve) => {
       db.run('UPDATE users SET role = ? WHERE email = ?', ['viewer', 'viewer@test.com'], resolve);
@@ -80,7 +80,7 @@ describe('RBAC System Tests', () => {
     
     viewerToken = (await request(app)
       .post('/api/auth/login')
-      .send({ email: 'viewer@test.com', password: 'password' })).body.token;
+      .send({ email: 'viewer@test.com', password: 'Password1!' })).body.token;
 
     // user detail retrieval not required for these tests
   });
