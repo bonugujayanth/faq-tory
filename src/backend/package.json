@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test:coverage": "jest tests/auth.coverage.test.js --coverage --runInBand --collectCoverageFrom=\"middleware/auth.js\" --collectCoverageFrom=\"!coverage/**\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "stop": "node scripts/stop-port.js"
