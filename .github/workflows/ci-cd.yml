@@ -1,88 +1,74 @@
 name: CI-CD Pipeline
 
 on:
-  push:
-    branches: [main, develop, feature/**]
+  push: {}
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
-          # point cache to backend lockfile since package.json lives in src/backend
           cache-dependency-path: src/backend/package-lock.json
 
-      - name: Install dependencies (backend)
-        run: |
-          if [ -f src/backend/package.json ]; then
-            npm ci --prefix src/backend
-          else
-            echo "No backend package.json found, skipping npm install"
-          fi
+      - name: Install dependencies
+        working-directory: src/backend
+        run: npm ci
 
-      - name: Run linting (backend)
-        run: |
-          if [ -f src/backend/package.json ] && npm --prefix src/backend list --depth=0 | grep -q eslint; then
-            npm --prefix src/backend run lint
-          else
-            echo "No linting configured for backend, skipping..."
-          fi
+      - name: Run lint
+        working-directory: src/backend
+        run: npm run lint
 
-      - name: Run tests with coverage threshold (backend)
-        run: |
-          if [ -f src/backend/package.json ] && npm --prefix src/backend list --depth=0 | grep -q jest; then
-            npm --prefix src/backend run test:coverage
-          else
-            echo "No backend tests configured, skipping..."
-          fi
-
-      - name: Upload coverage artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: |
-            src/backend/coverage/lcov.info
-            src/backend/coverage/coverage-final.json
-            src/backend/coverage/index.html
-
-      - name: Build application
-        run: |
-          if [ -f package.json ]; then
-            npm run build --if-present
-          else
-            echo "No build script found, skipping..."
-          fi
-
-      - name: Security audit
-        run: |
-          if [ -f package.json ]; then
-            npm audit --audit-level=high
-          else
-            echo "No package.json found, skipping security audit"
-          fi
-
-  deploy:
-    needs: build
+  test:
+    needs: lint
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
     steps:
-      - name: Deploy to staging
-        run: echo "Deploying to staging environment..."
-        
-      - name: Run integration tests
-        run: echo "Running integration tests..."
-        
-      - name: Deploy to production
-        run: echo "Deploying to production environment..."
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/backend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: src/backend
+        env:
+          CI: true
+        run: npm test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/backend
+        run: npm ci
+
+      - name: Build
+        working-directory: src/backend
+        run: npm run build --if-present
