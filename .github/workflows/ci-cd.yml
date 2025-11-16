@@ -51,15 +51,10 @@ jobs:
           cd src/backend
           npm install
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
           cd src/backend
-          npm test
-
-      - name: Generate coverage report
-        run: |
-          cd src/backend
-          npm test -- --coverage --coverageReporters="text" --coverageReporters="text-summary"
+          npm run test:coverage
 
   build:
     name: Build Application
