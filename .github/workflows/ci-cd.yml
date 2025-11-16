@@ -10,7 +10,8 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  install:
+    name: Install Dependencies
     runs-on: ubuntu-latest
     
     steps:
@@ -22,54 +23,157 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: 'src/backend/package-lock.json'
 
       - name: Install dependencies
         run: |
           cd src/backend
           npm install
-        continue-on-error: false
+
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: src/backend/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('src/backend/package-lock.json') }}
+
+  lint:
+    name: Lint Code
+    needs: install
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Restore node_modules
+        uses: actions/cache@v3
+        with:
+          path: src/backend/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('src/backend/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          cd src/backend
+          npm install
 
       - name: Run linting
         run: |
           cd src/backend
-          npm run lint || echo "Linting not configured or failed"
-        continue-on-error: true
+          npm run lint || echo "⚠️ Linting not configured or failed"
+
+  test:
+    name: Run Tests
+    needs: install
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Restore node_modules
+        uses: actions/cache@v3
+        with:
+          path: src/backend/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('src/backend/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          cd src/backend
+          npm install
 
       - name: Run tests
         run: |
           cd src/backend
           npm test
-        continue-on-error: false
 
       - name: Generate coverage report
         run: |
           cd src/backend
           npm test -- --coverage --coverageReporters="text" --coverageReporters="text-summary"
-        continue-on-error: true
+
+  build:
+    name: Build Application
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Restore node_modules
+        uses: actions/cache@v3
+        with:
+          path: src/backend/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('src/backend/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          cd src/backend
+          npm install
 
       - name: Build application
         run: |
           cd src/backend
           npm run build --if-present || echo "No build script found"
-        continue-on-error: true
 
-      - name: Security audit
+  security-audit:
+    name: Security Audit
+    needs: install
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Restore node_modules
+        uses: actions/cache@v3
+        with:
+          path: src/backend/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('src/backend/package-lock.json') }}
+
+      - name: Install dependencies
         run: |
           cd src/backend
-          npm audit --audit-level=moderate || echo "Security vulnerabilities found (non-blocking)"
-        continue-on-error: true
+          npm install
+
+      - name: Run security audit
+        run: |
+          cd src/backend
+          npm audit --audit-level=moderate || echo "⚠️ Security vulnerabilities found"
 
   deploy:
+    name: Deploy
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     
     steps:
       - name: Deploy to staging
-        run: echo "Deploying to staging environment..."
+        run: echo "✅ Deploying to staging environment..."
         
       - name: Run integration tests
-        run: echo "Running integration tests..."
+        run: echo "✅ Running integration tests..."
         
       - name: Deploy to production
-        run: echo "Deploying to production environment..."
+        run: echo "✅ Deploying to production environment..."
