@@ -107,14 +107,12 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    
     steps:
       - name: Deploy to staging
         run: echo "Deploying to staging environment..."
-        
       - name: Run integration tests
         run: echo "Running integration tests..."
-        
       - name: Deploy to production
         run: echo "Deploying to production environment..."
- 
+      - name: Deploy to production
+
