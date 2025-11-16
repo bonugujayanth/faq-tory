@@ -114,6 +114,30 @@ jobs:
           echo "🔄 Using GitHub API for 100% accurate attribution..." >&2
           echo "" >&2
           
+          # Build username normalization map (handle quoted names)
+          > username_normalizations.txt
+          while IFS='|' read -r sort_order gh_user real_name role; do
+            [ -z "$gh_user" ] && continue
+            
+            # Store variations: exact, with quotes, lowercase
+            echo "$gh_user|$gh_user" >> username_normalizations.txt
+            echo "\"$gh_user\"|$gh_user" >> username_normalizations.txt
+            echo "$(echo $gh_user | tr '[:upper:]' '[:lower:]')|$gh_user" >> username_normalizations.txt
+            
+            # Also store real name variations
+            if [ "$real_name" != "$gh_user" ]; then
+              echo "$real_name|$gh_user" >> username_normalizations.txt
+              echo "\"$real_name\"|$gh_user" >> username_normalizations.txt
+            fi
+          done < collaborators_sorted.txt
+          
+          # Remove duplicates
+          sort -u username_normalizations.txt > username_normalizations_unique.txt
+          mv username_normalizations_unique.txt username_normalizations.txt
+          
+          echo "📝 Created $(cat username_normalizations.txt | wc -l) username variations" >&2
+          echo "" >&2
+          
           # Use GitHub API for EVERY commit (most accurate)
           > commit_to_github.map
           PROCESSED=0
@@ -123,17 +147,40 @@ jobs:
           while IFS='|' read -r hash author_name author_email subject date; do
             [ -z "$hash" ] && continue
             
-            # Get GitHub username from API for this commit
+            # Clean author name (remove quotes if present)
+            CLEAN_AUTHOR=$(echo "$author_name" | sed 's/^"\(.*\)"$/\1/')
+            
+            # Try GitHub API first
             GH_USER=$(gh api repos/${{ github.repository }}/commits/$hash --jq '.author.login // empty' 2>/dev/null || echo "")
+            
+            # If API didn't return username, try matching with collaborators
+            if [ -z "$GH_USER" ]; then
+              # Try exact match with cleaned name
+              GH_USER=$(grep -i "^$CLEAN_AUTHOR|" username_normalizations.txt 2>/dev/null | head -1 | cut -d'|' -f2 || echo "")
+              
+              # Try email match
+              if [ -z "$GH_USER" ]; then
+                while IFS='|' read -r sort gh_username real_name role; do
+                  # Get user's email from GitHub
+                  USER_EMAIL=$(gh api users/$gh_username --jq '.email // empty' 2>/dev/null || echo "")
+                  
+                  if [ -n "$USER_EMAIL" ] && [ "$USER_EMAIL" = "$author_email" ]; then
+                    GH_USER="$gh_username"
+                    break
+                  fi
+                done < collaborators_sorted.txt
+              fi
+            fi
             
             if [ -n "$GH_USER" ]; then
               echo "$hash|$GH_USER|$author_name|$author_email|$subject|$date" >> commit_to_github.map
               MATCHED=$((MATCHED + 1))
             else
-              # Fallback for commits without GitHub association (rare)
+              # Final fallback: search API
               GH_USER=$(gh api "search/commits?q=repo:${{ github.repository }}+hash:$hash" --jq '.items[0].author.login // empty' 2>/dev/null || echo "unknown")
               echo "$hash|$GH_USER|$author_name|$author_email|$subject|$date" >> commit_to_github.map
               if [ "$GH_USER" = "unknown" ]; then
+                echo "  ⚠️  Could not match: $author_name ($author_email)" >&2
                 UNMATCHED=$((UNMATCHED + 1))
               else
                 MATCHED=$((MATCHED + 1))
@@ -153,12 +200,27 @@ jobs:
           echo "  - Unknown/External: $UNMATCHED" >&2
           echo "  - API calls used: $PROCESSED" >&2
           
+          # Save total commits for repo stats
+          echo "$PROCESSED" > repo_stats_commits.txt
+          
+          # Show unmatched authors for debugging
+          if [ "$UNMATCHED" -gt 0 ]; then
+            echo "" >&2
+            echo "⚠️  Unmatched authors:" >&2
+            grep "|unknown|" commit_to_github.map | cut -d'|' -f3,4 | sort -u | while IFS='|' read name email; do
+              echo "    - $name <$email>" >&2
+            done
+          fi
+          
+          # Save total commits for repo stats
+          echo "$PROCESSED" > repo_stats_commits.txt
+          
       - name: Detect branch creators (Cherry-pick aware)
         run: |
           set -e
           
           echo "========================================" >&2
-          echo "DETECTING BRANCH CREATORS" >&2
+          echo "DETECTING BRANCH CREATORS & RELATIONSHIPS" >&2
           echo "========================================" >&2
           
           # Define org owners
@@ -170,6 +232,12 @@ jobs:
           echo "" >&2
           
           > branch_ownership.map
+          > branch_relationships.txt
+          
+          # Count total branches
+          TOTAL_BRANCHES=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | grep -v 'origin/HEAD' | wc -l)
+          echo "📊 Total branches in repository: $TOTAL_BRANCHES" >&2
+          echo "$TOTAL_BRANCHES" > repo_stats_branches.txt
           
           # Analyze each branch
           git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | while read branch; do
@@ -182,16 +250,41 @@ jobs:
               INITIAL_COMMIT=$(git rev-list --max-parents=0 HEAD 2>/dev/null | head -1)
               CREATOR=$(grep "^$INITIAL_COMMIT|" commit_to_github.map 2>/dev/null | cut -d'|' -f2)
               echo "$BRANCH_NAME|$CREATOR|$INITIAL_COMMIT|default" >> branch_ownership.map
-              echo "  🏠 $BRANCH_NAME → $CREATOR (default)" >&2
+              echo "$BRANCH_NAME|ROOT|none|Initial repository branch" >> branch_relationships.txt
+              echo "  🏠 $BRANCH_NAME → $CREATOR (default/root)" >&2
               continue
             fi
             
-            # Find parent branch (try default first, then look for closest)
+            # Find parent branch using merge-base
             PARENT_BRANCH="origin/$DEFAULT_BRANCH"
             MERGE_BASE=$(git merge-base "$PARENT_BRANCH" "$branch" 2>/dev/null || echo "")
             
-            if [ -z "$MERGE_BASE" ]; then
-              # Try to find any parent
+            # Try to find a closer parent if merge-base with default is too far
+            if [ -n "$MERGE_BASE" ]; then
+              BEST_PARENT="$PARENT_BRANCH"
+              BEST_DISTANCE=$(git rev-list --count "$MERGE_BASE..$branch" 2>/dev/null || echo "999999")
+              
+              # Check all other branches to find closer parent
+              git for-each-ref --format='%(refname:short)' refs/remotes/origin/ 2>/dev/null | while read possible_parent; do
+                [ "$possible_parent" = "origin/HEAD" ] && continue
+                [ "$possible_parent" = "$branch" ] && continue
+                
+                TEST_BASE=$(git merge-base "$possible_parent" "$branch" 2>/dev/null || echo "")
+                if [ -n "$TEST_BASE" ]; then
+                  TEST_DISTANCE=$(git rev-list --count "$TEST_BASE..$branch" 2>/dev/null || echo "999999")
+                  
+                  # If this parent is closer and the merge-base is more recent
+                  if [ "$TEST_DISTANCE" -lt "$BEST_DISTANCE" ]; then
+                    BEST_PARENT="$possible_parent"
+                    BEST_DISTANCE="$TEST_DISTANCE"
+                    MERGE_BASE="$TEST_BASE"
+                  fi
+                fi
+              done
+              
+              PARENT_BRANCH="$BEST_PARENT"
+            else
+              # No merge-base found, try finding any parent
               for possible_parent in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/ | grep -v "^$branch$"); do
                 MERGE_BASE=$(git merge-base "$possible_parent" "$branch" 2>/dev/null || echo "")
                 if [ -n "$MERGE_BASE" ]; then
@@ -201,9 +294,12 @@ jobs:
               done
             fi
             
+            PARENT_BRANCH_NAME="${PARENT_BRANCH#origin/}"
+            
             if [ -z "$MERGE_BASE" ]; then
               echo "  ❓ $BRANCH_NAME → Unknown (no merge-base found)" >&2
               echo "$BRANCH_NAME|unknown||unknown" >> branch_ownership.map
+              echo "$BRANCH_NAME|ORPHAN|none|No clear parent branch found" >> branch_relationships.txt
               continue
             fi
             
@@ -213,6 +309,7 @@ jobs:
             if [ -z "$UNIQUE_COMMITS" ]; then
               echo "  ❓ $BRANCH_NAME → Unknown (no unique commits)" >&2
               echo "$BRANCH_NAME|unknown||unknown" >> branch_ownership.map
+              echo "$BRANCH_NAME|EMPTY|$PARENT_BRANCH_NAME|Branch has no unique commits" >> branch_relationships.txt
               continue
             fi
             
@@ -244,7 +341,7 @@ jobs:
                 continue
               fi
               
-              # Filter 2: Skip cherry-picked commits (same message + email in parent)
+              # Filter 2: Skip cherry-picked commits
               IS_CHERRY_PICK=false
               if echo "$PARENT_MESSAGES" | grep -F "$COMMIT_MSG|||$COMMIT_EMAIL" >/dev/null 2>&1; then
                 IS_CHERRY_PICK=true
@@ -256,19 +353,26 @@ jobs:
               
               # This is the branch creator!
               echo "$BRANCH_NAME|$GH_USER|$commit_hash|detected" >> branch_ownership.map
-              echo "  🌿 $BRANCH_NAME → $GH_USER (commit: ${commit_hash:0:7})" >&2
+              
+              # Record branch relationship
+              COMMIT_COUNT=$(git rev-list --count "$MERGE_BASE..$branch" 2>/dev/null || echo "0")
+              echo "$BRANCH_NAME|CHILD_OF|$PARENT_BRANCH_NAME|Branched from $PARENT_BRANCH_NAME ($COMMIT_COUNT commits ahead)" >> branch_relationships.txt
+              
+              echo "  🌿 $BRANCH_NAME → $GH_USER (parent: $PARENT_BRANCH_NAME, ${commit_hash:0:7})" >&2
               break
             done
             
             # If no creator found after filtering, mark as unknown
             if ! grep -q "^$BRANCH_NAME|" branch_ownership.map 2>/dev/null; then
               echo "$BRANCH_NAME|unknown||filtered" >> branch_ownership.map
-              echo "  ⚠️  $BRANCH_NAME → Unknown (all commits filtered)" >&2
+              echo "$BRANCH_NAME|CHILD_OF|$PARENT_BRANCH_NAME|All commits filtered (org/cherry-picked)" >> branch_relationships.txt
+              echo "  ⚠️  $BRANCH_NAME → Unknown (parent: $PARENT_BRANCH_NAME, all commits filtered)" >&2
             fi
           done
           
           echo "" >&2
           echo "✅ Branch creator detection complete" >&2
+          echo "✅ Branch relationships mapped" >&2
           
       - name: Fetch and batch process PRs
         env:
@@ -483,6 +587,250 @@ jobs:
           echo "*Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')*" >> report.md
           echo "" >> report.md
           
+          # Repository Statistics
+          REPO_TOTAL_COMMITS=$(cat repo_stats_commits.txt 2>/dev/null || echo "0")
+          BRANCH_INFO=$(cat repo_stats_branches.txt 2>/dev/null || echo "0|none")
+          REPO_TOTAL_BRANCHES=$(echo "$BRANCH_INFO" | cut -d'|' -f1)
+          ORIGIN_STATUS=$(echo "$BRANCH_INFO" | cut -d'|' -f2)
+          REPO_TOTAL_PRS=$(jq 'length' all_prs.json 2>/dev/null || echo "0")
+          REPO_TOTAL_MEMBERS=$(cat collaborators_sorted.txt | wc -l)
+          
+          echo "## 📈 Repository Statistics" >> report.md
+          echo "" >> report.md
+          echo "| Metric | Count |" >> report.md
+          echo "|--------|-------|" >> report.md
+          echo "| **Total Commits** (Team) | $REPO_TOTAL_COMMITS |" >> report.md
+          
+          if [ "$ORIGIN_STATUS" = "origin" ]; then
+            echo "| **Total Branches** (Team) | origin + $REPO_TOTAL_BRANCHES real branches |" >> report.md
+          else
+            echo "| **Total Branches** (Team) | $REPO_TOTAL_BRANCHES |" >> report.md
+          fi
+          
+          echo "| **Total Pull Requests** | $REPO_TOTAL_PRS |" >> report.md
+          echo "| **Total Team Members** | $REPO_TOTAL_MEMBERS |" >> report.md
+          echo "" >> report.md
+          echo "---" >> report.md
+          echo "" >> report.md
+          
+          # Branch Hierarchy with Merge History
+          echo "## 🌳 Branch Network & Merge History" >> report.md
+          echo "" >> report.md
+          
+          DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+          
+          # Show default branch
+          CREATOR_INFO=$(grep "^$DEFAULT_BRANCH|" branch_ownership.map 2>/dev/null || echo "|unknown|||")
+          CREATOR=$(echo "$CREATOR_INFO" | cut -d'|' -f2)
+          
+          echo "### 🏠 $DEFAULT_BRANCH (Root Branch)" >> report.md
+          echo "**Created by:** [@$CREATOR](https://github.com/$CREATOR)" >> report.md
+          echo "" >> report.md
+          
+          # Show merges into default branch
+          if [ -f branch_merges.txt ] && grep -q "^$DEFAULT_BRANCH|" branch_merges.txt; then
+            echo "**Merges into $DEFAULT_BRANCH:**" >> report.md
+            grep "^$DEFAULT_BRANCH|" branch_merges.txt | while IFS='|' read target source merger hash date; do
+              SHORT_DATE=$(echo "$date" | cut -d' ' -f1)
+              echo "- 🔀 \`$source\` merged by [@$merger](https://github.com/$merger) on $SHORT_DATE" >> report.md
+            done
+            echo "" >> report.md
+          fi
+          
+          # Show child branches of default
+          echo "**Child Branches:**" >> report.md
+          grep "|CHILD_OF|$DEFAULT_BRANCH|" branch_relationships.txt 2>/dev/null | while IFS='|' read child rel parent commits desc; do
+            CHILD_CREATOR=$(grep "^$child|" branch_ownership.map 2>/dev/null | cut -d'|' -f2)
+            echo "- 🌿 [\`$child\`](https://github.com/${{ github.repository }}/tree/$child) by [@$CHILD_CREATOR](https://github.com/$CHILD_CREATOR) ($commits commits ahead)" >> report.md
+            
+            # Show if this branch has been merged
+            if grep -q "|$child|" branch_merges.txt 2>/dev/null; then
+              MERGE_INFO=$(grep "|$child|" branch_merges.txt | head -1)
+              MERGE_TARGET=$(echo "$MERGE_INFO" | cut -d'|' -f1)
+              MERGER=$(echo "$MERGE_INFO" | cut -d'|' -f3)
+              MERGE_DATE=$(echo "$MERGE_INFO" | cut -d'|' -f5 | cut -d' ' -f1)
+              echo "  - ✅ Merged into \`$MERGE_TARGET\` by [@$MERGER](https://github.com/$MERGER) on $MERGE_DATE" >> report.md
+            fi
+            
+            # Show grandchildren (branches from this branch)
+            grep "|CHILD_OF|$child|" branch_relationships.txt 2>/dev/null | while IFS='|' read grandchild grel gparent gcommits gdesc; do
+              GRANDCHILD_CREATOR=$(grep "^$grandchild|" branch_ownership.map 2>/dev/null | cut -d'|' -f2)
+              echo "  - 🌱 [\`$grandchild\`](https://github.com/${{ github.repository }}/tree/$grandchild) by [@$GRANDCHILD_CREATOR](https://github.com/$GRANDCHILD_CREATOR) ($gcommits commits ahead of $child)" >> report.md
+            done
+          done
+          echo "" >> report.md
+          
+          # Show develop branch if exists
+          if grep -q "^develop|" branch_ownership.map 2>/dev/null; then
+            echo "### 🌿 develop" >> report.md
+            DEVELOP_CREATOR=$(grep "^develop|" branch_ownership.map | cut -d'|' -f2)
+            DEVELOP_PARENT=$(grep "^develop|" branch_ownership.map | cut -d'|' -f5)
+            echo "**Created by:** [@$DEVELOP_CREATOR](https://github.com/$DEVELOP_CREATOR)" >> report.md
+            echo "**Parent:** \`$DEVELOP_PARENT\`" >> report.md
+            echo "" >> report.md
+            
+            # Show merges into develop
+            if [ -f branch_merges.txt ] && grep -q "^develop|" branch_merges.txt; then
+              echo "**Merges into develop:**" >> report.md
+              grep "^develop|" branch_merges.txt | while IFS='|' read target source merger hash date; do
+                SHORT_DATE=$(echo "$date" | cut -d' ' -f1)
+                echo "- 🔀 \`$source\` merged by [@$merger](https://github.com/$merger) on $SHORT_DATE" >> report.md
+              done
+              echo "" >> report.md
+            fi
+            
+            # Show child branches of develop
+            if grep -q "|CHILD_OF|develop|" branch_relationships.txt; then
+              echo "**Child Branches:**" >> report.md
+              grep "|CHILD_OF|develop|" branch_relationships.txt | while IFS='|' read child rel parent commits desc; do
+                CHILD_CREATOR=$(grep "^$child|" branch_ownership.map 2>/dev/null | cut -d'|' -f2)
+                echo "- 🌿 [\`$child\`](https://github.com/${{ github.repository }}/tree/$child) by [@$CHILD_CREATOR](https://github.com/$CHILD_CREATOR) ($commits commits ahead)" >> report.md
+              done
+              echo "" >> report.md
+            fi
+          fi
+          
+          echo "---" >> report.md
+          echo "" >> report.md
+          
+          # All Branches Table
+          echo "## 📋 All Branches Summary" >> report.md
+          echo "" >> report.md
+          echo "| Branch | Creator | Parent | Commits Ahead | Status |" >> report.md
+          echo "|--------|---------|--------|---------------|--------|" >> report.md
+          
+          while IFS='|' read branch creator commit method parent; do
+            [ -z "$branch" ] && continue
+            
+            REL_INFO=$(grep "^$branch|" branch_relationships.txt 2>/dev/null || echo "|||0|")
+            RELATIONSHIP=$(echo "$REL_INFO" | cut -d'|' -f2)
+            COMMITS=$(echo "$REL_INFO" | cut -d'|' -f4)
+            
+            # Check merge status
+            STATUS="🟡 Open"
+            if grep -q "|$branch|" branch_merges.txt 2>/dev/null; then
+              MERGE_TARGET=$(grep "|$branch|" branch_merges.txt | head -1 | cut -d'|' -f1)
+              STATUS="✅ Merged → \`$MERGE_TARGET\`"
+            fi
+            
+            if [ "$RELATIONSHIP" = "ROOT" ]; then
+              echo "| [\`$branch\`](https://github.com/${{ github.repository }}/tree/$branch) | [@$creator](https://github.com/$creator) | *Root* | - | 🏠 Root |" >> report.md
+            elif [ -n "$parent" ] && [ "$parent" != "none" ]; then
+              echo "| [\`$branch\`](https://github.com/${{ github.repository }}/tree/$branch) | [@$creator](https://github.com/$creator) | \`$parent\` | $COMMITS | $STATUS |" >> report.md
+            else
+              echo "| [\`$branch\`](https://github.com/${{ github.repository }}/tree/$branch) | [@$creator](https://github.com/$creator) | Unknown | $COMMITS | $STATUS |" >> report.md
+            fi
+          done < branch_ownership.map
+          
+          echo "" >> report.md
+          echo "---" >> report.md
+          echo "" >> report.md
+          
+          # Repository Statistics
+          REPO_TOTAL_COMMITS=$(cat repo_stats_commits.txt 2>/dev/null || echo "0")
+          REPO_TOTAL_BRANCHES=$(cat repo_stats_branches.txt 2>/dev/null || echo "0")
+          REPO_TOTAL_PRS=$(jq 'length' all_prs.json 2>/dev/null || echo "0")
+          REPO_TOTAL_MEMBERS=$(cat collaborators_sorted.txt | wc -l)
+          
+          echo "## 📈 Repository Statistics" >> report.md
+          echo "" >> report.md
+          echo "| Metric | Count |" >> report.md
+          echo "|--------|-------|" >> report.md
+          echo "| **Total Commits** | $REPO_TOTAL_COMMITS |" >> report.md
+          echo "| **Total Branches** | $REPO_TOTAL_BRANCHES |" >> report.md
+          echo "| **Total Pull Requests** | $REPO_TOTAL_PRS |" >> report.md
+          echo "| **Total Team Members** | $REPO_TOTAL_MEMBERS |" >> report.md
+          echo "" >> report.md
+          echo "---" >> report.md
+          echo "" >> report.md
+          
+          # All Branches Table
+          echo "## 🌿 All Branches" >> report.md
+          echo "" >> report.md
+          echo "| Branch | Creator | Parent Branch | Commits Ahead | Last Updated |" >> report.md
+          echo "|--------|---------|---------------|---------------|--------------|" >> report.md
+          
+          git for-each-ref --sort=-committerdate --format='%(refname:short)|%(committerdate:short)' refs/remotes/origin/ 2>/dev/null | while IFS='|' read branch updated; do
+            [ "$branch" = "origin/HEAD" ] && continue
+            
+            BRANCH_NAME="${branch#origin/}"
+            CREATOR_INFO=$(grep "^$BRANCH_NAME|" branch_ownership.map 2>/dev/null || echo "|unknown||")
+            CREATOR=$(echo "$CREATOR_INFO" | cut -d'|' -f2)
+            
+            REL_INFO=$(grep "^$BRANCH_NAME|" branch_relationships.txt 2>/dev/null || echo "||none|")
+            RELATIONSHIP=$(echo "$REL_INFO" | cut -d'|' -f2)
+            PARENT=$(echo "$REL_INFO" | cut -d'|' -f3)
+            DESCRIPTION=$(echo "$REL_INFO" | cut -d'|' -f4)
+            
+            # Extract commits ahead from description
+            COMMITS_AHEAD=$(echo "$DESCRIPTION" | grep -oP '\d+(?= commits ahead)' || echo "-")
+            
+            if [ "$RELATIONSHIP" = "ROOT" ]; then
+              echo "| [\`$BRANCH_NAME\`](https://github.com/${{ github.repository }}/tree/$BRANCH_NAME) | [@$CREATOR](https://github.com/$CREATOR) | *Root* | - | $updated |" >> report.md
+            elif [ "$RELATIONSHIP" = "CHILD_OF" ]; then
+              echo "| [\`$BRANCH_NAME\`](https://github.com/${{ github.repository }}/tree/$BRANCH_NAME) | [@$CREATOR](https://github.com/$CREATOR) | \`$PARENT\` | $COMMITS_AHEAD | $updated |" >> report.md
+            else
+              echo "| [\`$BRANCH_NAME\`](https://github.com/${{ github.repository }}/tree/$BRANCH_NAME) | [@$CREATOR](https://github.com/$CREATOR) | Unknown | - | $updated |" >> report.md
+            fi
+          done
+          
+          echo "" >> report.md
+          echo "---" >> report.md
+          echo "" >> report.md
+          
+          # Branch Relationships
+          echo "## 🌳 Branch Hierarchy & Relationships" >> report.md
+          echo "" >> report.md
+          echo "This shows the parent-child relationships between branches:" >> report.md
+          echo "" >> report.md
+          
+          # Function to build branch tree
+          DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+          
+          # Show default branch first
+          CREATOR_INFO=$(grep "^$DEFAULT_BRANCH|" branch_ownership.map 2>/dev/null || echo "|unknown||")
+          CREATOR=$(echo "$CREATOR_INFO" | cut -d'|' -f2)
+          echo "### 🏠 $DEFAULT_BRANCH (Root)" >> report.md
+          echo "**Creator:** [@$CREATOR](https://github.com/$CREATOR)" >> report.md
+          echo "" >> report.md
+          
+          # Show child branches
+          grep "^[^|]*|CHILD_OF|$DEFAULT_BRANCH|" branch_relationships.txt 2>/dev/null | while IFS='|' read child_branch rel parent desc; do
+            CREATOR_INFO=$(grep "^$child_branch|" branch_ownership.map 2>/dev/null || echo "|unknown||")
+            CHILD_CREATOR=$(echo "$CREATOR_INFO" | cut -d'|' -f2)
+            
+            echo "#### ├─ [\`$child_branch\`](https://github.com/${{ github.repository }}/tree/$child_branch)" >> report.md
+            echo "**Creator:** [@$CHILD_CREATOR](https://github.com/$CHILD_CREATOR) • $desc" >> report.md
+            echo "" >> report.md
+            
+            # Show grandchildren (branches from this branch)
+            grep "^[^|]*|CHILD_OF|$child_branch|" branch_relationships.txt 2>/dev/null | while IFS='|' read grandchild_branch grel gparent gdesc; do
+              GRANDCHILD_INFO=$(grep "^$grandchild_branch|" branch_ownership.map 2>/dev/null || echo "|unknown||")
+              GRANDCHILD_CREATOR=$(echo "$GRANDCHILD_INFO" | cut -d'|' -f2)
+              
+              echo "##### │  ├─ [\`$grandchild_branch\`](https://github.com/${{ github.repository }}/tree/$grandchild_branch)" >> report.md
+              echo "**Creator:** [@$GRANDCHILD_CREATOR](https://github.com/$GRANDCHILD_CREATOR) • $gdesc" >> report.md
+              echo "" >> report.md
+            done
+          done
+          
+          # Show orphan/special branches
+          if grep -qE "^[^|]*\|(ORPHAN|EMPTY)" branch_relationships.txt 2>/dev/null; then
+            echo "### ❓ Other Branches" >> report.md
+            echo "" >> report.md
+            grep -E "^[^|]*\|(ORPHAN|EMPTY)" branch_relationships.txt 2>/dev/null | while IFS='|' read branch_name rel parent desc; do
+              CREATOR_INFO=$(grep "^$branch_name|" branch_ownership.map 2>/dev/null || echo "|unknown||")
+              BRANCH_CREATOR=$(echo "$CREATOR_INFO" | cut -d'|' -f2)
+              
+              echo "#### [\`$branch_name\`](https://github.com/${{ github.repository }}/tree/$branch_name)" >> report.md
+              echo "**Creator:** [@$BRANCH_CREATOR](https://github.com/$BRANCH_CREATOR) • $desc" >> report.md
+              echo "" >> report.md
+            done
+          fi
+          
+          echo "---" >> report.md
+          echo "" >> report.md
+          
           # Team Members Section
           echo "## 👥 Team Members" >> report.md
           echo "" >> report.md
@@ -621,15 +969,23 @@ jobs:
           echo "" >> report.md
           echo "## 📌 Notes" >> report.md
           echo "" >> report.md
+          echo "### Data Collection" >> report.md
           echo "- **Org Owners:** v-s-v-i-s-h-w-a-s, Akarsh-Hegde, HarshPandya4gd" >> report.md
           echo "- **Commit Attribution:** 100% accurate via GitHub API (one API call per commit)" >> report.md
           echo "- **Branch Creator Detection:** Cherry-pick aware, skips org owner commits" >> report.md
-          echo "- **PR Review Types:**" >> report.md
-          echo "  - **Approved:** Formal approval" >> report.md
-          echo "  - **Commented:** General comment review" >> report.md
-          echo "  - **Review Comments:** Inline code review comments" >> report.md
-          echo "  - **Changes Requested:** Requested changes before merge" >> report.md
+          echo "- **Branch Relationships:** Parent-child mapping using merge-base analysis" >> report.md
+          echo "" >> report.md
+          echo "### PR Review Types" >> report.md
+          echo "- **Approved:** Formal approval" >> report.md
+          echo "- **Commented:** General comment review" >> report.md
+          echo "- **Review Comments:** Inline code review comments" >> report.md
+          echo "- **Changes Requested:** Requested changes before merge" >> report.md
+          echo "" >> report.md
+          echo "### Metrics Explanation" >> report.md
           echo "- **PRs Merged:** Counts who clicked the merge button (not PR author)" >> report.md
+          echo "- **Commits (Own):** Commits made on branches created by the member" >> report.md
+          echo "- **Commits (Contrib):** Commits made on branches created by others" >> report.md
+          echo "- **Commits Ahead:** Number of unique commits on a branch compared to its parent" >> report.md
           echo "- **Team Accounts Filtered:** Pattern \`(RR|EC)_(CSE|AIML)_PESU25_[A-L]_*\`" >> report.md
           echo "" >> report.md
           echo "*Report generated by GitHub Actions • $(date -u '+%Y-%m-%d %H:%M:%S UTC')*" >> report.md
@@ -657,6 +1013,9 @@ jobs:
             member-data/
             commit_to_github.map
             branch_ownership.map
+            branch_relationships.txt
+            repo_stats_commits.txt
+            repo_stats_branches.txt
             collaborators_sorted.txt
             all_prs.json
             pr_created.txt
@@ -691,15 +1050,15 @@ jobs:
           echo "  - TOTAL ESTIMATED: ~$TOTAL_API_CALLS calls"
           echo ""
           TOTAL_MEMBERS=$(cat collaborators_sorted.txt | wc -l)
-          TOTAL_COMMITS=$(cat commit_to_github.map | wc -l)
-          TOTAL_BRANCHES=$(cat branch_ownership.map | wc -l)
+          TOTAL_COMMITS=$(cat repo_stats_commits.txt 2>/dev/null || echo "0")
+          TOTAL_BRANCHES=$(cat repo_stats_branches.txt 2>/dev/null || echo "0")
           TOTAL_PRS=$(jq 'length' all_prs.json)
           
           echo "📈 Repository Stats:"
-          echo "  - Members: $TOTAL_MEMBERS"
-          echo "  - Commits: $TOTAL_COMMITS"
-          echo "  - Branches: $TOTAL_BRANCHES"
-          echo "  - PRs: $TOTAL_PRS"
+          echo "  - Total Commits: $TOTAL_COMMITS"
+          echo "  - Total Branches: $TOTAL_BRANCHES"
+          echo "  - Total PRs: $TOTAL_PRS"
+          echo "  - Team Members: $TOTAL_MEMBERS"
           echo ""
           echo "🔍 PR Review Stats:"
           TOTAL_REVIEWS=$(cat pr_reviews.txt 2>/dev/null | wc -l || echo "0")
