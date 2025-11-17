@@ -1,0 +1,11 @@
+question,answer
+What is Node.js?,Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine.
+What is Express?,Express is a minimal and flexible Node.js web application framework.
+What is SQLite?,SQLite is a C-language library that implements a small fast self-contained SQL database engine.
+What is JWT?,JWT (JSON Web Token) is a compact URL-safe means of representing claims to be transferred between two parties.
+What is CORS?,CORS (Cross-Origin Resource Sharing) is a mechanism that allows restricted resources on a web page to be requested from another domain.
+What is REST API?,REST API is an application programming interface that conforms to the constraints of REST architectural style.
+What is Authentication?,Authentication is the process of verifying the identity of a user or process.
+What is Authorization?,Authorization is the process of giving someone permission to do or have something.
+What is Middleware?,Middleware functions are functions that have access to the request object request response object and the next function.
+What is a Database Schema?,A database schema is the skeleton structure that represents the logical view of the entire database.

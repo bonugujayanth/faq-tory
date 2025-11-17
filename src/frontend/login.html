@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - FAQ-tory</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>Welcome back</h1>
+                <p>Sign in to access your account</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email address</label>
+                    <input type="email" id="email" name="email" class="form-control" required placeholder="Enter your email">
+                    <div class="error-message">Please enter a valid email address</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" class="form-control" required placeholder="Enter your password">
+                    <div class="error-message">Password is required</div>
+                </div>
+
+                <button type="submit" class="auth-button" id="loginButton">
+                    Sign in
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                Don't have an account? <a href="signup.html" class="auth-link">Sign up</a>
+            </div>
+            
+            <p id="msg" class="error-message" style="text-align: center; margin-top: 16px;"></p>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const loginButton = document.getElementById('loginButton');
+        const msg = document.getElementById('msg');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const form = e.target;
+            const data = { 
+                email: form.email.value, 
+                password: form.password.value 
+            };
+            
+            loginButton.disabled = true;
+            loginButton.textContent = 'Signing in...';
+            msg.style.display = 'none';
+            
+            try {
+                const res = await login(data);
+                if (res.token) {
+                    msg.textContent = 'Logged in successfully! Redirecting...';
+                    msg.style.color = 'var(--success)';
+                    msg.style.display = 'block';
+                    localStorage.setItem('token', res.token);
+                    setTimeout(() => window.location.href = 'dashboard.html', 800);
+                } else {
+                    throw new Error(res.message || 'Login failed');
+                }
+            } catch (error) {
+                msg.textContent = error.message;
+                msg.style.display = 'block';
+                loginButton.disabled = false;
+                loginButton.textContent = 'Sign in';
+            }
+        });
+
+        // Add input validation
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+
+        emailInput.addEventListener('input', validateEmail);
+        passwordInput.addEventListener('input', validatePassword);
+
+        function validateEmail() {
+            const emailGroup = emailInput.parentElement;
+            if (!emailInput.value) {
+                emailGroup.classList.add('error');
+            } else {
+                emailGroup.classList.remove('error');
+            }
+        }
+
+        function validatePassword() {
+            const passwordGroup = passwordInput.parentElement;
+            if (!passwordInput.value) {
+                passwordGroup.classList.add('error');
+            } else {
+                passwordGroup.classList.remove('error');
+            }
+        }
+    </script>
+</body>
+</html>
