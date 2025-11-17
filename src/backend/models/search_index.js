@@ -82,7 +82,20 @@ class SearchIndex {
       if (!this.engine) {
         await this.initialize();
       }
-      return await this.engine.checkHealth();
+      const raw = await this.engine.checkHealth();
+
+      // Normalize response shape to a predictable JSON format
+      const normalized = {
+        ok: !!(raw && raw.ok),
+        message: (raw && raw.message) || (raw && raw.error) || (raw && String(raw)) || 'Search index health unknown'
+      };
+
+      if (raw && raw.engine) normalized.engine = raw.engine;
+      if (raw && raw.algorithm) normalized.algorithm = raw.algorithm;
+      if (raw && typeof raw.documentCount === 'number') normalized.documentCount = raw.documentCount;
+      if (raw && raw.error) normalized.error = raw.error;
+
+      return normalized;
     } catch (err) {
       return { 
         ok: false, 
