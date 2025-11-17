@@ -17,6 +17,62 @@ const { errorHandler } = require('./middleware/error');
 const app = express();
 app.use(cors());
 app.use(express.json());
+const rateLimiter = require('./lib/rate_limiter');
+const alertManager = require('./lib/alert_manager');
+
+// Apply a simple API gateway style rate limiter to all /api routes
+app.use('/api', rateLimiter.middleware);
+
+// Monitor responses to detect 5xx spikes (records every finished response)
+app.use((req, res, next) => {
+  // Attach listener on finish to capture status code
+  res.on('finish', () => {
+    try {
+      // recordResponse(status, path, ip)
+      alertManager.recordResponse(res.statusCode, req.originalUrl || req.url, req.ip || req.connection.remoteAddress);
+    } catch (e) {
+      console.error('Failed to record response for monitoring', e);
+    }
+  });
+  next();
+});
+// If DEVOPS_ALERT_WEBHOOK is configured, wire a simple async notifier
+if (process.env.DEVOPS_ALERT_WEBHOOK) {
+  const webhook = process.env.DEVOPS_ALERT_WEBHOOK;
+  const url = require('url');
+  const http = require('http');
+  const https = require('https');
+
+  alertManager.setNotifier(async (payload) => {
+    try {
+      const u = url.parse(webhook);
+      const body = JSON.stringify(payload);
+      const opts = {
+        hostname: u.hostname,
+        port: u.port,
+        path: u.path,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body)
+        }
+      };
+      const client = u.protocol === 'https:' ? https : http;
+      return new Promise((resolve, reject) => {
+        const req = client.request(opts, (res) => {
+          const chunks = [];
+          res.on('data', (c) => chunks.push(c));
+          res.on('end', () => resolve({ statusCode: res.statusCode, body: Buffer.concat(chunks).toString() }));
+        });
+        req.on('error', (e) => reject(e));
+        req.write(body);
+        req.end();
+      });
+    } catch (e) {
+      console.error('DevOps webhook notifier failed', e);
+    }
+  });
+}
 
 // API Routes
 app.use('/api/auth', authRoutes);

@@ -21,8 +21,10 @@ function isStrongPassword(pw) {
   return lengthOk && upper && lower && number && symbol;
 }
 
+const { requireFields } = require('../middleware/validate');
+
 // Signup
-router.post('/signup', async (req, res) => {
+router.post('/signup', requireFields(['name','email','password']), async (req, res) => {
   const { name, email, password } = req.body || {};
   if (!name || !email || !password) return res.status(400).json({ message: 'Missing fields' });
   // Allow simpler passwords during tests to avoid test-suite churn; enforce policy otherwise

@@ -331,7 +331,10 @@ function generateCSV(entries) {
 }
 
 // Create Q/A entry
-router.post('/', authenticateToken, async (req, res) => {
+const { requireFields } = require('../middleware/validate');
+
+// Create Q/A entry
+router.post('/', authenticateToken, requireFields(['question','answer']), async (req, res) => {
   try {
     const { question, answer } = req.body;
     

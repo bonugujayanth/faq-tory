@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const alertManager = require('../lib/alert_manager');
 const { authenticateToken } = require('../middleware/auth');
+const rateLimiter = require('../lib/rate_limiter');
 
 // GET /api/monitor/alerts - List alerts (most recent first) - admin only
 router.get('/alerts', authenticateToken, (req, res) => {
@@ -38,6 +39,30 @@ router.post('/alerts/clear', authenticateToken, (req, res) => {
     }
     alertManager.clear();
     res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/monitor/rate - Show rate limiter stats (admin only)
+router.get('/rate', authenticateToken, (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    res.json({ rate: rateLimiter.stats() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/monitor/5xx - show recent 5xx spike stats
+router.get('/5xx', authenticateToken, (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    res.json({ stats: alertManager.fiveXxStats(), alerts: alertManager.listAlerts() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

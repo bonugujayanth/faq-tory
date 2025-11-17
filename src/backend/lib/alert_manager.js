@@ -6,6 +6,12 @@ class AlertManager {
   constructor() {
     this.alerts = [];
     this.nextId = 1;
+    // track recent responses for 5xx spike detection
+    this.recentResponses = []; // array of { ts: number, status, path, ip }
+    this.windowSeconds = parseInt(process.env.ALERT_WINDOW_SECONDS, 10) || 60; // sliding window
+    this.threshold5xx = parseInt(process.env.ALERT_5XX_THRESHOLD, 10) || 10; // default threshold
+    this.last5xxAlertAt = 0;
+    this.notifier = null; // optional function to deliver alerts (payload) => Promise
   }
 
   pushAlert({ level = 'warning', source = 'system', message = '', data = null }) {
@@ -24,6 +30,56 @@ class AlertManager {
     const logFn = level === 'critical' ? console.error : console.warn;
     logFn(`[ALERT:${level}] ${source}: ${message}`, data || '');
     return alert;
+  }
+
+  // Set a custom notifier function (async) for delivering alerts (e.g. webhook, pager)
+  setNotifier(fn) {
+    this.notifier = fn;
+  }
+
+  // Record an HTTP response to enable spike detection. Call from server middleware on response finish.
+  recordResponse(status, path, ip) {
+    try {
+      const ts = Date.now();
+      this.recentResponses.push({ ts, status, path, ip });
+      // prune old
+      const cutoff = ts - this.windowSeconds * 1000;
+      while (this.recentResponses.length && this.recentResponses[0].ts < cutoff) {
+        this.recentResponses.shift();
+      }
+
+      // count 5xx
+      const count5xx = this.recentResponses.reduce((acc, r) => acc + (r.status >= 500 && r.status < 600 ? 1 : 0), 0);
+      // If threshold exceeded and we haven't alerted recently (cooldown = windowSeconds)
+      if (count5xx >= this.threshold5xx && ts - this.last5xxAlertAt > this.windowSeconds * 1000) {
+        this.last5xxAlertAt = ts;
+        const message = `Spike in 5xx responses: ${count5xx} in the last ${this.windowSeconds}s`;
+        const alert = this.pushAlert({ level: 'critical', source: 'monitor.5xx', message, data: { count5xx, windowSeconds: this.windowSeconds } });
+        // fire notifier if present
+        if (this.notifier) {
+          try {
+            // Do not await to avoid blocking response path
+            Promise.resolve(this.notifier({ alert })).catch((e) => console.error('Notifier error', e));
+          } catch (e) {
+            console.error('Notifier call failed', e);
+          }
+        }
+        return alert;
+      }
+      return null;
+    } catch (e) {
+      console.error('recordResponse failed', e);
+      return null;
+    }
+  }
+
+  // Return simple 5xx stats for monitoring endpoints
+  fiveXxStats() {
+    const now = Date.now();
+    const cutoff = now - this.windowSeconds * 1000;
+    const recent = this.recentResponses.filter(r => r.ts >= cutoff);
+    const count5xx = recent.reduce((acc, r) => acc + (r.status >= 500 && r.status < 600 ? 1 : 0), 0);
+    return { windowSeconds: this.windowSeconds, count5xx };
   }
 
   listAlerts() {

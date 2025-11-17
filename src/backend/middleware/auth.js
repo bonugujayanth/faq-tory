@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const db = require('../models/db');
 const fs = require('fs');
+const alertManager = require('../lib/alert_manager');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
@@ -20,18 +21,22 @@ function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'] || req.headers['Authorization'];
   if (!authHeader) {
     cleanupUploadedFile();
+    // Log unauthorized access attempt
+    alertManager.pushAlert({ level: 'warning', source: 'auth.middleware', message: 'No token provided', data: { ip: req.ip } });
     return res.status(401).json({ message: 'No token provided' });
   }
   const parts = authHeader.split(' ');
   const token = parts.length === 2 && parts[0] === 'Bearer' ? parts[1] : null;
   if (!token) {
     cleanupUploadedFile();
+    alertManager.pushAlert({ level: 'warning', source: 'auth.middleware', message: 'Invalid token format', data: { ip: req.ip } });
     return res.status(401).json({ message: 'Invalid token format' });
   }
 
   jwt.verify(token, JWT_SECRET, (err, payload) => {
     if (err) {
       cleanupUploadedFile();
+      alertManager.pushAlert({ level: 'warning', source: 'auth.middleware', message: 'Invalid token', data: { ip: req.ip } });
       return res.status(401).json({ message: 'Invalid token' });
     }
     // Check blacklist for jti
@@ -44,10 +49,12 @@ function authenticateToken(req, res, next) {
     db.get(sql, [jti], (e2, row) => {
       if (e2) {
         cleanupUploadedFile();
+        alertManager.pushAlert({ level: 'critical', source: 'auth.middleware', message: 'Permission check failed', data: { ip: req.ip, error: e2.message } });
         return res.status(500).json({ message: 'Permission check failed' });
       }
       if (row) {
         cleanupUploadedFile();
+        alertManager.pushAlert({ level: 'warning', source: 'auth.middleware', message: 'Token revoked', data: { ip: req.ip } });
         return res.status(401).json({ message: 'Token revoked' });
       }
       req.user = payload;
