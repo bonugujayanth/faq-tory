@@ -8,6 +8,7 @@ const categoryRoutes = require('./routes/categories');
 const qaRoutes = require('./routes/qa');
 const searchRoutes = require('./routes/search');
 const feedbackRoutes = require('./routes/feedback');
+const monitorRoutes = require('./routes/monitor');
 const db = require('./models/db');
 const path = require('path');
 const http = require('http');
@@ -25,6 +26,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/qa', qaRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/feedback', feedbackRoutes);
+// Monitoring endpoints (alerts, restore job monitoring)
+app.use('/api/monitor', monitorRoutes);
 
 // Basic root
 app.get('/', (req, res) => res.json({ message: 'Dynamic FAQ Builder API' }));

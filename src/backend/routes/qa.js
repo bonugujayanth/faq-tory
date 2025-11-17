@@ -6,6 +6,8 @@ const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
+const alertManager = require('../lib/alert_manager');
+const SearchIndex = require('../models/search_index');
 
 // Configure multer for file uploads
 const upload = multer({
@@ -448,15 +450,72 @@ router.delete('/:id/permanent', authenticateToken, async (req, res) => {
   }
 });
 
-// Restore archived Q/A entry
+// Restore archived Q/A entry with post-restore integrity checks and monitoring alerts
 router.post('/:id/restore', authenticateToken, async (req, res) => {
   try {
-    const qa = await QA.restore(req.params.id);
-    res.json(qa);
+    const restored = await QA.restore(req.params.id);
+
+    // Verify the DB row after restore
+    let entry;
+    try {
+      entry = await QA.getById(req.params.id);
+    } catch (err) {
+      // This is critical: DB update succeeded but subsequent read failed
+      const alert = alertManager.pushAlert({
+        level: 'critical',
+        source: 'qa.restore',
+        message: `Post-restore verification failed for id=${req.params.id}: unable to read row`,
+        data: { error: err.message }
+      });
+      return res.status(500).json({ error: 'Restore verification failed', alert });
+    }
+
+    // Ensure archived flag is cleared
+    if (entry.archived && parseInt(entry.archived, 10) !== 0) {
+      const alert = alertManager.pushAlert({
+        level: 'critical',
+        source: 'qa.restore',
+        message: `Post-restore integrity mismatch for id=${req.params.id}: archived flag still true`,
+        data: { entry }
+      });
+      return res.status(500).json({ error: 'Restore integrity check failed', alert });
+    }
+
+    // Attempt to re-index the restored document in the search index
+    try {
+      // search index expects a document shaped like { id, question, answer, current_version }
+      const doc = {
+        id: entry.id,
+        question: entry.question,
+        answer: entry.answer,
+        current_version: entry.current_version || 1
+      };
+      await SearchIndex.updateDocument(doc);
+    } catch (err) {
+      // indexing failed: alert but do not block the restore operation
+      const alert = alertManager.pushAlert({
+        level: 'warning',
+        source: 'qa.restore',
+        message: `Search index update failed after restore for id=${req.params.id}`,
+        data: { error: err.message }
+      });
+      // Return the restored object but include a small integrity note so callers/tests can see an index issue
+      return res.json(Object.assign({}, restored, { integrity: { reindexed: false, alert } }));
+    }
+
+    // Everything OK: return restored entry and integrity status
+    res.json(Object.assign({}, restored, { integrity: { reindexed: true } }));
   } catch (err) {
     if (err.message === 'Q/A entry not found') {
       return res.status(404).json({ error: err.message });
     }
+    // Log alert for unexpected restore error
+    alertManager.pushAlert({
+      level: 'critical',
+      source: 'qa.restore',
+      message: `Unexpected error during restore for id=${req.params.id}`,
+      data: { error: err.message }
+    });
     res.status(500).json({ error: err.message });
   }
 });
