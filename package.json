@@ -1,6 +1,15 @@
 {
+  "scripts": {
+    "test": "jest"
+  },
   "dependencies": {
     "csv-parser": "^3.2.0",
     "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^6.3.3",
+    "sqlite3": "^5.1.6",
+    "bcrypt": "^5.1.0"
   }
 }

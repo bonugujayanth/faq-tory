@@ -6,17 +6,25 @@ const path = require('path');
 process.env.DB_PATH = path.join(__dirname, '..', 'src', 'backend', 'data', 'test.db');
 process.env.JWT_SECRET = 'testsecret';
 
-const app = require('../src/backend/server');
 const dbPath = process.env.DB_PATH;
+// Ensure any existing test DB is removed before the app opens it (avoid Windows file locks)
+if (fs.existsSync(dbPath)) {
+  try { fs.unlinkSync(dbPath); } catch (e) { /* best-effort cleanup */ }
+}
+
+const app = require('../src/backend/server');
 
 beforeAll(() => {
-  // remove existing test DB
-  if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+  // nothing to do here because test DB is removed synchronously above
 });
 
 afterAll(() => {
-  // cleanup
-  if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+  // cleanup - best-effort remove test DB (may be locked on Windows if a handle remains open)
+  try {
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+  } catch (e) {
+    // ignore locking errors during cleanup
+  }
 });
 
 describe('Auth API', () => {
