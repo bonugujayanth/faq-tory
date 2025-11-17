@@ -41,6 +41,16 @@ describe('Auth API', () => {
   let token;
   let shortLivedToken;
 
+  beforeEach((done) => {
+    // Clean database before each test
+    const db = require('../models/db');
+    db.run('DELETE FROM users', () => {
+      db.run('DELETE FROM qa', () => {
+        done();
+      });
+    });
+  });
+
   test('signup valid -> 201', async () => {
     const res = await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'Test@123' });
     expect(res.statusCode).toBe(201);
