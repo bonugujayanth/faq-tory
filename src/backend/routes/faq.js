@@ -1,6 +1,7 @@
 const express = require('express');
 const FAQ = require('../models/faq');
-const { authenticateToken, requirePermission, requireAnyRole, logAudit } = require('../middleware/auth');
+// eslint-disable-next-line no-unused-vars
+const { authenticateToken, requireAnyRole, requirePermission, logAudit } = require('../middleware/auth');
 
 const router = express.Router();
 

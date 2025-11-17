@@ -1,13 +1,14 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const authRoutes = require('./routes/auth');
 const faqRoutes = require('./routes/faq');
 const adminRoutes = require('./routes/admin');
 const categoryRoutes = require('./routes/categories');
 const qaRoutes = require('./routes/qa');
-const db = require('./models/db');
-const path = require('path');
+// eslint-disable-next-line no-unused-vars
+const _db = require('./models/db');
 const http = require('http');
 const { errorHandler } = require('./middleware/error');
 

@@ -12,7 +12,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.log('Connected to database');
     
     // List all tables
-    db.all("SELECT name FROM sqlite_master WHERE type='table'", [], (err, tables) => {
+    db.all('SELECT name FROM sqlite_master WHERE type=\'table\'', [], (err, tables) => {
         if (err) {
             console.error('Error getting tables:', err);
             return;
@@ -23,7 +23,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
         });
         
         // Get user count
-        db.get("SELECT COUNT(*) as count FROM users", [], (err, result) => {
+        db.get('SELECT COUNT(*) as count FROM users', [], (err, result) => {
             if (err) {
                 console.error('Error counting users:', err);
             } else {

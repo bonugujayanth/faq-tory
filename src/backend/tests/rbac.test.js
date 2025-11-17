@@ -37,7 +37,9 @@ afterAll((done) => {
 
 describe('RBAC System Tests', () => {
   let adminToken, editorToken, viewerToken;
+  // eslint-disable-next-line no-unused-vars
   let adminUser, editorUser, viewerUser;
+  // eslint-disable-next-line no-unused-vars
   let testFAQId, testCategoryId;
 
   // Setup test users
@@ -58,7 +60,8 @@ describe('RBAC System Tests', () => {
       .send({ email: 'admin@test.com', password: 'password' })).body.token : null;
 
     // Create editor user
-    const editorRes = await request(app)
+    // eslint-disable-next-line no-unused-vars
+    const _editorRes = await request(app)
       .post('/api/auth/signup')
       .send({ name: 'Editor User', email: 'editor@test.com', password: 'password' });
     
@@ -71,7 +74,8 @@ describe('RBAC System Tests', () => {
       .send({ email: 'editor@test.com', password: 'password' })).body.token;
 
     // Create viewer user
-    const viewerRes = await request(app)
+    // eslint-disable-next-line no-unused-vars
+    const _viewerRes = await request(app)
       .post('/api/auth/signup')
       .send({ name: 'Viewer User', email: 'viewer@test.com', password: 'password' });
     
@@ -312,7 +316,8 @@ describe('RBAC System Tests', () => {
         status: 'published'
       };
 
-      const res = await request(app)
+      // eslint-disable-next-line no-unused-vars
+      const _res = await request(app)
         .post('/api/faq')
         .set('Authorization', `Bearer ${adminToken}`)
         .send(faqData);
