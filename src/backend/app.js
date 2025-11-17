@@ -17,7 +17,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/feedback', feedbackRoutes);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error(err.stack);
   
   if (err.name === 'ValidationError') {

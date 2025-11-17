@@ -133,7 +133,7 @@ class Feedback {
               answer: feedback.content // Using feedback content as new answer
             };
 
-            FAQ.update(feedback.faq_id, updateData, (err, result) => {
+            FAQ.update(feedback.faq_id, updateData, (err, _result) => {
               if (err) return callback(err);
               callback(null, { 
                 feedback_id: feedbackId, 

@@ -1,4 +1,4 @@
-const lunr = require('lunr');
+// const lunr = require('lunr'); // TODO: Use for advanced text analysis
 const xss = require('xss'); // For sanitizing user input
 
 class HighlightHelper {

@@ -11,7 +11,7 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
     }
 
     // First, get all tables
-    db.all("SELECT name FROM sqlite_master WHERE type='table'", [], (err, tables) => {
+    db.all('SELECT name FROM sqlite_master WHERE type=\'table\'', [], (err, tables) => {
         if (err) {
             console.error('Error listing tables:', err);
             process.exit(1);
@@ -39,6 +39,7 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
                     // For users table, hide password hashes
                     if (table.name === 'users') {
                         rows = rows.map(row => {
+                            // eslint-disable-next-line no-unused-vars
                             const { password, ...rest } = row;
                             return { ...rest, password: '(hidden)' };
                         });

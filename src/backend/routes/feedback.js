@@ -136,7 +136,7 @@ router.delete('/:id',
   (req, res) => {
     const feedbackId = parseInt(req.params.id);
     
-    Feedback.delete(feedbackId, (err, result) => {
+    Feedback.delete(feedbackId, (err, _result) => {
       if (err) {
         console.error('Error deleting feedback:', err);
         return res.status(500).json({ message: err.message || 'Database error' });

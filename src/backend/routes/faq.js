@@ -1,6 +1,7 @@
 const express = require('express');
 const FAQ = require('../models/faq');
-const { authenticateToken, requirePermission, requireAnyRole, logAudit } = require('../middleware/auth');
+const { authenticateToken, requirePermission, logAudit } = require('../middleware/auth');
+// const { requireAnyRole } = require('../middleware/auth'); // TODO: Implement role-based filtering
 
 const router = express.Router();
 

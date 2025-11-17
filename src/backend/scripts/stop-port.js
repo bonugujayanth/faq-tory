@@ -4,12 +4,11 @@ function stopByPort(port) {
   try {
     if (process.platform === 'win32') {
       // Try PowerShell Get-NetTCPConnection
-      const psCommand = `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"`;
       const ps = spawnSync('powershell', ['-NoProfile', '-Command', `Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }`], { stdio: 'inherit' });
       if (ps.status === 0) return;
 
       // Fallback using netstat + taskkill
-      const netstat = execSync(`for /f "tokens=5" %a in ('netstat -ano ^| findstr :${port}') do taskkill /PID %a /F`, { stdio: 'inherit', shell: 'cmd.exe' });
+      execSync(`for /f "tokens=5" %a in ('netstat -ano ^| findstr :${port}') do taskkill /PID %a /F`, { stdio: 'inherit', shell: 'cmd.exe' });
       return;
     } else {
       // macOS/Linux

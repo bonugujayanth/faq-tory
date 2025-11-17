@@ -1,7 +1,7 @@
 const express = require('express');
 const SearchIndex = require('../models/search_index');
-const HighlightHelper = require('../utils/highlight_helper');
-const FilterValidator = require('../utils/filter_validator');
+// const HighlightHelper = require('../utils/highlight_helper'); // TODO: Implement highlighting
+// const FilterValidator = require('../utils/filter_validator'); // TODO: Implement filter validation
 
 const router = express.Router();
 
@@ -14,7 +14,7 @@ router.get('/health', async (req, res) => {
 // Search Q/A entries with filtering
 router.get('/', async (req, res) => {
   try {
-    const startTime = Date.now();
+    // const startTime = Date.now(); // TODO: Add performance metrics
     const { q, tags, createdAfter, createdBefore, updatedAfter, updatedBefore, startDate, endDate, updatedStart, updatedEnd } = req.query;
     
     if (!q) {
