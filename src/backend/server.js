@@ -7,6 +7,7 @@ const adminRoutes = require('./routes/admin');
 const categoryRoutes = require('./routes/categories');
 const qaRoutes = require('./routes/qa');
 const searchRoutes = require('./routes/search');
+const feedbackRoutes = require('./routes/feedback');
 const db = require('./models/db');
 const path = require('path');
 const http = require('http');
@@ -23,6 +24,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/qa', qaRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Basic root
 app.get('/', (req, res) => res.json({ message: 'Dynamic FAQ Builder API' }));
