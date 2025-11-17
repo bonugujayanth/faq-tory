@@ -22,15 +22,15 @@ afterAll((done) => {
     const db = require('../models/db');
     if (db && typeof db.close === 'function') {
       db.close(() => {
-        try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
+        try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) { /* ignore cleanup errors */ }
         done();
       });
     } else {
-      try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
+      try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) { /* ignore cleanup errors */ }
       done();
     }
   } catch (e) {
-    try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
+    try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) { /* ignore cleanup errors */ }
     done();
   }
 });
