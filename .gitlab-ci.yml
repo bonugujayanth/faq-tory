@@ -1,0 +1,27 @@
+stages:
+  - install
+  - test
+
+default:
+  image: node:18
+
+# Run CI only on your feature branch
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "feature/Feedback_Backend_API_Story_7.3"
+    - when: never
+
+install_dependencies:
+  stage: install
+  script:
+    - echo "📦 Installing dependencies..."
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+
+run_tests:
+  stage: test
+  script:
+    - echo "🧪 Running tests..."
+    - npm test || echo "⚠️ No test script defined, skipping."

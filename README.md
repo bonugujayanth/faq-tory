@@ -55,6 +55,19 @@ This repository contains the source code and documentation for the Dynamic FAQ B
    # Add your run commands here
    ```
 
+<<<<<<< HEAD
+=======
+Quick local start (Windows)
+1. Ensure Node.js is installed on your machine (node + npm available on PATH).
+2. Open File Explorer and navigate to `src\backend`.
+3. Double-click `run-server.bat` to install dependencies (first run) and start the server.
+4. After the server starts, double-click `open-browser.bat` to open the signup/login/dashboard pages in your default browser.
+
+Notes:
+- The batch files simply run `npm install` (if needed) and `npm run dev` in a cmd window — they avoid PowerShell execution policy issues.
+- If you prefer to run from a terminal, see the commands in the project.
+
+>>>>>>> feature/role_based_access_control
 ## 📁 Project Structure
 
 ```
