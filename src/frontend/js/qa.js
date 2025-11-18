@@ -1,5 +1,8 @@
 // Q/A Management Frontend JavaScript
-const API_BASE = window.location.origin;
+// Use localhost:3000 if opened as file://, otherwise use current origin
+const API_BASE = (window && window.location && window.location.protocol === 'file:') 
+  ? 'http://localhost:3000' 
+  : window.location.origin;
 const token = localStorage.getItem('token');
 
 // Check authentication

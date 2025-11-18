@@ -1,4 +1,7 @@
-const API_BASE = (window && window.location && window.location.origin) ? window.location.origin : '';
+// Use localhost:3000 if opened as file://, otherwise use current origin
+const API_BASE = (window && window.location && window.location.protocol === 'file:') 
+  ? 'http://localhost:3000' 
+  : (window && window.location && window.location.origin) ? window.location.origin : 'http://localhost:3000';
 
 async function signup(data) {
   try {
