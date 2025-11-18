@@ -15,7 +15,7 @@ class LunrSearchEngine {
   async initialize() {
     try {
       const entries = await new Promise((resolve, reject) => {
-        db.all('SELECT * FROM faqs WHERE status != \'archived\'', [], (err, rows) => {
+        db.all('SELECT * FROM qa WHERE archived = 0', [], (err, rows) => {
           if (err) return reject(err);
           resolve(rows || []);
         });
