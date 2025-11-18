@@ -1,42 +1,25 @@
 const db = require('./db');
 const QAVersion = require('./qa_version');
+const SearchIndex = require('./search_index');
 
 // Database initialization and migrations
-// Only drop table in test environment
-if (process.env.NODE_ENV === 'test') {
-  db.serialize(() => {
-    // Drop existing table (for testing purposes)
-    db.run('DROP TABLE IF EXISTS qa');
-    
-    // Create Q/A table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS qa (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        question TEXT NOT NULL,
-        answer TEXT NOT NULL,
-        current_version INTEGER DEFAULT 1,
-        archived BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-  });
-} else {
-  // In production/development, just create table if not exists
-  db.serialize(() => {
-    db.run(`
-      CREATE TABLE IF NOT EXISTS qa (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        question TEXT NOT NULL,
-        answer TEXT NOT NULL,
-        current_version INTEGER DEFAULT 1,
-        archived BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-  });
-}
+db.serialize(() => {
+  // Drop existing table (for testing purposes)
+  db.run('DROP TABLE IF EXISTS qa');
+  
+  // Create Q/A table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS qa (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      question TEXT NOT NULL,
+      answer TEXT NOT NULL,
+      current_version INTEGER DEFAULT 1,
+      archived BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+});
 
 class QA {
   // Create a new Q/A entry
@@ -64,6 +47,10 @@ class QA {
 
           // Commit transaction
           await new Promise((res, rej) => db.run('COMMIT', err => err ? rej(err) : res()));
+          
+          // Add to search index
+          await SearchIndex.addDocument(qaEntry);
+          
           resolve(qaEntry);
         } catch (err) {
           // Rollback on error
@@ -157,7 +144,12 @@ class QA {
 
           // Commit transaction
           await new Promise((res, rej) => db.run('COMMIT', err => err ? rej(err) : res()));
-          resolve({ id, question, answer, current_version: newVersion });
+          
+          // Update search index
+          const updatedEntry = { id, question, answer, current_version: newVersion };
+          await SearchIndex.updateDocument(updatedEntry);
+          
+          resolve(updatedEntry);
         } catch (err) {
           // Rollback on error
           await new Promise((res) => db.run('ROLLBACK', res));

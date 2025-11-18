@@ -40,7 +40,7 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
                     if (table.name === 'users') {
                         rows = rows.map(row => {
                             // eslint-disable-next-line no-unused-vars
-                            const { password: _password, ...rest } = row;
+                            const { password, ...rest } = row;
                             return { ...rest, password: '(hidden)' };
                         });
                     }

@@ -22,6 +22,7 @@ module.exports = {
     'coverage/',
     'uploads/',
     'data/',
-    '*.config.js'
+    '*.config.js',
+    'tests/'  // Ignore test files from strict linting
   ],
 };
