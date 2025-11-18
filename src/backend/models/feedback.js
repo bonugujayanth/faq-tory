@@ -3,13 +3,13 @@ const db = require('./db');
 class Feedback {
   // Create new feedback/suggestion
   static create(feedbackData, callback) {
-    const { faq_id, user_id, feedback_type, content, user_email, user_name } = feedbackData;
+    const { faq_id, user_id, feedback_type, content, user_email, user_name, rating } = feedbackData;
     const sql = `
-      INSERT INTO feedback (faq_id, user_id, feedback_type, content, user_email, user_name, status)
-      VALUES (?, ?, ?, ?, ?, ?, 'pending')
+      INSERT INTO feedback (faq_id, user_id, feedback_type, content, user_email, user_name, rating, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
     `;
     
-    db.run(sql, [faq_id, user_id, feedback_type, content, user_email, user_name], function(err) {
+    db.run(sql, [faq_id, user_id, feedback_type, content, user_email, user_name, rating || null], function(err) {
       if (err) return callback(err);
       callback(null, { id: this.lastID, ...feedbackData, status: 'pending' });
     });

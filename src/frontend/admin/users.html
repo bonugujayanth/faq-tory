@@ -3,6 +3,31 @@
 <head>
     <title>User Management</title>
     <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        .user-table thead {
+            background: #f3f4f6;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .user-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+        }
+        .user-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            color: #1f2937;
+        }
+        .user-table tbody tr:hover {
+            background: #f9fafb;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -28,8 +53,14 @@
             }
         })
         .then(response => response.json())
-        .then(users => {
+        .then(data => {
             const userList = document.getElementById('userList');
+            const users = Array.isArray(data) ? data : (Array.isArray(data.users) ? data.users : []);
+
+            if (!Array.isArray(users)) {
+                throw new Error('Unexpected users payload');
+            }
+
             if (users.length === 0) {
                 userList.innerHTML = '<p>No users found</p>';
                 return;
@@ -53,7 +84,7 @@
                                 <td>${user.name}</td>
                                 <td>${user.email}</td>
                                 <td>${user.role}</td>
-                                <td>${new Date(user.createdAt).toLocaleString()}</td>
+                                <td>${(user.created_at || user.createdAt) ? new Date(user.created_at || user.createdAt).toLocaleString() : '-'}</td>
                             </tr>
                         `).join('')}
                     </tbody>

@@ -23,12 +23,22 @@
     .faq-meta { display: flex; gap: 15px; font-size: 0.8em; color: var(--muted); }
     .faq-actions { margin-top: 10px; }
     .btn-small { padding: 5px 10px; font-size: 0.8em; margin-right: 5px; }
+    .search-result-item { padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 10px; background: white; }
+    .search-result-header { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; }
+    .search-result-header:hover { background: #f9fafb; }
+    .expand-arrow { display: inline-block; min-width: 20px; text-align: center; font-size: 0.9em; color: #6b7280; transition: transform 0.2s; }
+    .search-result-question { flex: 1; font-weight: 600; }
+    .search-result-answer { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; color: var(--muted); }
+    .rating-container { white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+    .rating-dropdown { padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 0.85em; }
     .search-box { width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 20px; }
     .role-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 600; }
     .role-admin { background: #fef3c7; color: #92400e; }
     .role-editor { background: #dbeafe; color: #1e40af; }
     .role-viewer { background: #f3f4f6; color: #374151; }
     .hidden { display: none; }
+    .nav-button.active { background: #065f46; }
+    .muted { color: var(--muted); }
   </style>
 </head>
 <body>
@@ -42,46 +52,27 @@
     </div>
 
     <div class="dashboard-nav">
-      <button id="nav-overview" class="nav-button">Overview</button>
       <button id="nav-faqs" class="nav-button">FAQs</button>
-      <a href="qa.html" class="nav-button">Q/A Management</a>
-      <a href="feedback.html" class="nav-button">Feedback</a>
+      <button id="nav-my-answers" class="nav-button">My Answered Questions</button>
       <button id="nav-search" class="nav-button">Search</button>
       <button id="nav-admin" class="nav-button hidden">Admin Panel</button>
     </div>
 
-    <!-- Overview Section -->
-    <div id="overview-section" class="content-section">
-      <h2>Overview</h2>
-      <div class="stats-grid" id="stats-grid">
-        <div class="stat-card">
-          <div class="stat-number" id="total-faqs">-</div>
-          <div class="stat-label">Total FAQs</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-number" id="published-faqs">-</div>
-          <div class="stat-label">Published</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-number" id="draft-faqs">-</div>
-          <div class="stat-label">Drafts</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-number" id="total-views">-</div>
-          <div class="stat-label">Total Views</div>
-        </div>
-      </div>
-    </div>
-
     <!-- FAQ Management Section -->
-    <div id="faq-section" class="content-section hidden">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>FAQ Management</h2>
-        <button id="create-faq-btn" class="nav-button hidden">Create New FAQ</button>
+    <div id="faqs-section" class="content-section">
+      <h2>FAQ Management</h2>
+      
+      <!-- Submit Question Form -->
+      <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #e5e7eb;">
+        <h3 style="margin-bottom: 15px;">Submit a Question</h3>
+        <form id="submit-question-form" style="display: flex; flex-direction: column; gap: 12px;">
+          <textarea id="question-input" name="question" class="form-control" required placeholder="Enter your question..." style="min-height: 100px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit;"></textarea>
+          <button type="submit" class="nav-button" id="submit-question-btn" style="align-self: flex-start;">Submit Question</button>
+          <p id="submit-msg" style="margin: 0; display: none;"></p>
+        </form>
       </div>
-      <div class="faq-list" id="faq-list">
-        <p class="muted">Loading FAQs...</p>
-      </div>
+
+      <!-- FAQ List removed by request -->
     </div>
 
     <!-- Search Section -->
@@ -90,6 +81,14 @@
       <input type="text" id="search-input" class="search-box" placeholder="Search questions and answers...">
       <div class="faq-list" id="search-results">
         <p class="muted">Enter a search term to find FAQs</p>
+      </div>
+    </div>
+
+    <!-- My Answered Questions Section -->
+    <div id="my-answers-section" class="content-section hidden">
+      <h2>My Answered Questions</h2>
+      <div class="faq-list" id="my-answers-list">
+        <p class="muted">Loading your answered questions...</p>
       </div>
     </div>
 
@@ -134,23 +133,17 @@
       // Show/hide admin features
       if (currentUser.role === 'admin') {
         document.getElementById('nav-admin').classList.remove('hidden');
-        document.getElementById('create-faq-btn').classList.remove('hidden');
-      }
-      
-      if (currentUser.role === 'editor') {
-        document.getElementById('create-faq-btn').classList.remove('hidden');
       }
       
       // Load initial data
-      await loadOverview();
       setupEventListeners();
     }
 
     function setupEventListeners() {
       // Navigation
-      document.getElementById('nav-overview').addEventListener('click', () => showSection('overview'));
       document.getElementById('nav-faqs').addEventListener('click', () => showSection('faqs'));
       document.getElementById('nav-search').addEventListener('click', () => showSection('search'));
+      document.getElementById('nav-my-answers').addEventListener('click', () => showSection('my-answers'));
       document.getElementById('nav-admin').addEventListener('click', () => showSection('admin'));
       
       // Admin navigation
@@ -159,8 +152,10 @@
       document.getElementById('admin-audit').addEventListener('click', () => loadAdminAudit());
       
       // FAQ management
-      document.getElementById('create-faq-btn').addEventListener('click', () => createFAQ());
       document.getElementById('search-input').addEventListener('input', debounce(performSearch, 300));
+      
+      // Submit question form
+      document.getElementById('submit-question-form').addEventListener('submit', submitQuestion);
       
       // Logout
       document.getElementById('logout').addEventListener('click', () => {
@@ -175,38 +170,98 @@
       document.querySelectorAll('.nav-button').forEach(el => el.classList.remove('active'));
       
       // Show selected section
-      document.getElementById(`${section}-section`).classList.remove('hidden');
-      document.getElementById(`nav-${section}`).classList.add('active');
+      const sectionEl = document.getElementById(`${section}-section`);
+      if (sectionEl) {
+        sectionEl.classList.remove('hidden');
+      } else {
+        console.error(`Section ${section}-section not found`);
+      }
+      
+      const navBtn = document.getElementById(`nav-${section}`);
+      if (navBtn) {
+        navBtn.classList.add('active');
+      }
       
       currentSection = section;
       
       // Load section-specific data
-      if (section === 'faqs') loadFAQs();
-      if (section === 'search') document.getElementById('search-results').innerHTML = '<p class="muted">Enter a search term to find FAQs</p>';
+      // (faqs): no FAQ list to load; showing only the submit form
+      if (section === 'search') {
+        // If we have cached search results, refresh the ratings before displaying
+        if (searchCache.results && searchCache.results.length > 0) {
+          reloadSearchResultsWithUpdatedRatings();
+        } else {
+          document.getElementById('search-results').innerHTML = '<p class="muted">Enter a search term to find FAQs</p>';
+        }
+      }
+      if (section === 'my-answers') loadMyAnsweredQuestions();
     }
 
-    async function loadOverview() {
+    async function reloadSearchResultsWithUpdatedRatings() {
+      // Fetch latest ratings for cached results
+      const results = searchCache.results;
+      const userRatings = {};
       try {
-        const response = await fetch('/api/faq/stats/overview', {
-          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          const stats = data.stats;
-          
-          document.getElementById('total-faqs').textContent = stats.total_faqs || 0;
-          document.getElementById('published-faqs').textContent = stats.published_faqs || 0;
-          document.getElementById('draft-faqs').textContent = stats.draft_faqs || 0;
-          document.getElementById('total-views').textContent = stats.total_views || 0;
+        for (const item of results) {
+          const response = await fetch(`/api/feedback?faq_id=${item.id}&feedback_type=rating`, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            const userRating = data.feedback.find(f => f.user_id === currentUser.id);
+            if (userRating) {
+              userRatings[item.id] = userRating.rating;
+            }
+          }
         }
       } catch (error) {
-        console.error('Error loading overview:', error);
+        console.error('Error fetching updated ratings:', error);
       }
+      
+      // Update cache with new ratings
+      searchCache.ratings = userRatings;
+      
+      // Re-render with updated ratings
+      const container = document.getElementById('search-results');
+      container.innerHTML = results.map((item, index) => {
+        const userRating = userRatings[item.id] ? String(userRatings[item.id]) : '';
+        
+        return `
+        <div class="faq-item" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
+          <div style="flex: 1; cursor: pointer;" onclick="toggleAnswer(${index})">
+            <div class="faq-question">${item.question}</div>
+            <div id="answer-${index}" class="faq-answer" style="display: none; margin-top: 10px;">
+              <strong>Answer:</strong> ${item.answer}
+            </div>
+            <div class="faq-meta" style="margin-top: 8px;">
+              <span>Category: ${item.category_name || 'Uncategorized'}</span>
+              <span>Created: ${new Date(item.created_at).toLocaleDateString()}</span>
+            </div>
+          </div>
+          <div style="white-space: nowrap;">
+            <label style="font-size: 0.9em; color: #6b7280; display: block; margin-bottom: 5px;">Rate:</label>
+            <div style="display: flex; gap: 8px;">
+              <select id="rating-select-${item.id}" class="rating-select" style="padding: 6px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.95em;">
+                <option value="" ${userRating === '' ? 'selected' : ''}>Not rated</option>
+                <option value="1" ${userRating === '1' ? 'selected' : ''}>1</option>
+                <option value="2" ${userRating === '2' ? 'selected' : ''}>2</option>
+                <option value="3" ${userRating === '3' ? 'selected' : ''}>3</option>
+                <option value="4" ${userRating === '4' ? 'selected' : ''}>4</option>
+                <option value="5" ${userRating === '5' ? 'selected' : ''}>5</option>
+              </select>
+              <button onclick="const sel = document.getElementById('rating-select-${item.id}'); submitRating(${item.id}, sel.value, sel)" style="padding: 6px 12px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em;">Save</button>
+            </div>
+          </div>
+        </div>
+      `}).join('');
     }
+
 
     async function loadFAQs() {
       try {
+        // If FAQ list container is not present, skip loading
+        if (!document.getElementById('faq-list')) return;
+
         const response = await fetch('/api/faq', {
           headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
         });
@@ -214,10 +269,15 @@
         if (response.ok) {
           const data = await response.json();
           displayFAQs(data.faqs);
+        } else {
+          console.error('Failed to load FAQs:', response.status, response.statusText);
+          const list = document.getElementById('faq-list');
+          if (list) list.innerHTML = '<p class="muted">No FAQs available</p>';
         }
       } catch (error) {
         console.error('Error loading FAQs:', error);
-        document.getElementById('faq-list').innerHTML = '<p class="muted">Error loading FAQs</p>';
+        const list = document.getElementById('faq-list');
+        if (list) list.innerHTML = '<p class="muted">Error loading FAQs: ' + error.message + '</p>';
       }
     }
 
@@ -256,6 +316,12 @@
       return currentUser.role === 'admin';
     }
 
+    // Cache for search results and ratings
+    let searchCache = {
+      results: [],
+      ratings: {}
+    };
+
     async function performSearch() {
       const query = document.getElementById('search-input').value.trim();
       if (!query) {
@@ -264,28 +330,47 @@
       }
       
       try {
-        // Use localhost:3000 if opened as file://, otherwise use current origin
+        // First try Lunr search
         const API_BASE = (window && window.location && window.location.protocol === 'file:') 
           ? 'http://localhost:3000' 
           : (window && window.location && window.location.origin) ? window.location.origin : 'http://localhost:3000';
         
-        const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`, {
+        let response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`, {
           headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
         });
         
+        let data = { results: [] };
+        
         if (response.ok) {
-          const data = await response.json();
-          displaySearchResults(data.results);
-        } else {
-          throw new Error('Search request failed');
+          data = await response.json();
         }
+        
+        // If Lunr returns no results or few results, try database search with LIKE
+        if (!data.results || data.results.length === 0) {
+          response = await fetch(`${API_BASE}/api/faq`, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+          });
+          
+          if (response.ok) {
+            const allFaqs = await response.json();
+            const searchTerm = query.toLowerCase();
+            data.results = allFaqs.faqs.filter(faq => 
+              faq.status === 'published' && (
+                faq.question.toLowerCase().includes(searchTerm) ||
+                faq.answer.toLowerCase().includes(searchTerm)
+              )
+            );
+          }
+        }
+        
+        displaySearchResults(data.results);
       } catch (error) {
         console.error('Error searching FAQs:', error);
         document.getElementById('search-results').innerHTML = '<p class="muted">Error searching FAQs</p>';
       }
     }
 
-    function displaySearchResults(results) {
+    async function displaySearchResults(results) {
       const container = document.getElementById('search-results');
       
       if (!results || results.length === 0) {
@@ -293,17 +378,140 @@
         return;
       }
       
-      container.innerHTML = results.map(item => `
-        <div class="faq-item">
-          <div class="faq-question">${item.question}</div>
-          <div class="faq-answer">${item.answer.substring(0, 150)}${item.answer.length > 150 ? '...' : ''}</div>
-          <div class="faq-meta">
-            <span>ID: ${item.id}</span>
-            <span>Relevance: ${item.score ? item.score.toFixed(2) : 'N/A'}</span>
-            <span>Created: ${new Date(item.created_at).toLocaleDateString()}</span>
+      // Fetch user ratings for all FAQs
+      const userRatings = {};
+      try {
+        for (const item of results) {
+          const response = await fetch(`/api/feedback?faq_id=${item.id}&feedback_type=rating`, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            // Find current user's rating for this FAQ
+            const userRating = data.feedback.find(f => f.user_id === currentUser.id);
+            if (userRating) {
+              userRatings[item.id] = userRating.rating;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user ratings:', error);
+      }
+      
+      // Cache the results and ratings
+      searchCache.results = results;
+      searchCache.ratings = userRatings;
+      
+      container.innerHTML = results.map((item, index) => {
+        const userRating = userRatings[item.id] ? String(userRatings[item.id]) : '';
+        const ratingOptions = ['', '1', '2', '3', '4', '5'];
+        
+        return `
+        <div class="faq-item" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
+          <div style="flex: 1; cursor: pointer;" onclick="toggleAnswer(${index})">
+            <div class="faq-question">${item.question}</div>
+            <div id="answer-${index}" class="faq-answer" style="display: none; margin-top: 10px;">
+              <strong>Answer:</strong> ${item.answer}
+            </div>
+            <div class="faq-meta" style="margin-top: 8px;">
+              <span>Category: ${item.category_name || 'Uncategorized'}</span>
+              <span>Created: ${new Date(item.created_at).toLocaleDateString()}</span>
+            </div>
+          </div>
+          <div style="white-space: nowrap;">
+            <label style="font-size: 0.9em; color: #6b7280; display: block; margin-bottom: 5px;">Rate: <span id="rating-display-${item.id}" style="font-weight: 600; color: #1f2937;">${userRating ? userRating : 'Not rated'}</span></label>
+            <div style="display: flex; gap: 8px;">
+              <select id="rating-select-${item.id}" class="rating-select" onchange="document.getElementById('rating-display-${item.id}').textContent = this.value || 'Not rated'" style="padding: 6px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.95em;">
+                <option value="" ${userRating === '' ? 'selected' : ''}>Not rated</option>
+                <option value="1" ${userRating === '1' ? 'selected' : ''}>1</option>
+                <option value="2" ${userRating === '2' ? 'selected' : ''}>2</option>
+                <option value="3" ${userRating === '3' ? 'selected' : ''}>3</option>
+                <option value="4" ${userRating === '4' ? 'selected' : ''}>4</option>
+                <option value="5" ${userRating === '5' ? 'selected' : ''}>5</option>
+              </select>
+              <button onclick="const sel = document.getElementById('rating-select-${item.id}'); submitRating(${item.id}, sel.value, sel)" style="padding: 6px 12px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em;">Save</button>
+            </div>
           </div>
         </div>
-      `).join('');
+      `}).join('');
+    }
+
+    function toggleAnswer(index, containerId) {
+      if (containerId) {
+        // For "My Answered Questions" - find the parent container and toggle the answer
+        const container = document.getElementById(containerId);
+        const items = container.querySelectorAll('.search-result-item');
+        if (items[index]) {
+          const answerDiv = items[index].querySelector('.search-result-answer');
+          const arrow = items[index].querySelector('.expand-arrow');
+          if (answerDiv) {
+            const isHidden = answerDiv.style.display === 'none';
+            answerDiv.style.display = isHidden ? 'block' : 'none';
+            if (arrow) {
+              arrow.textContent = isHidden ? '▼' : '▶';
+            }
+          }
+        }
+      } else {
+        // For search results - use the old method
+        const answerEl = document.getElementById(`answer-${index}`);
+        if (answerEl) {
+          answerEl.style.display = answerEl.style.display === 'none' ? 'block' : 'none';
+        }
+      }
+    }
+
+    async function submitRating(faqId, rating, selectElement) {
+      if (!rating) {
+        alert('Please select a rating');
+        return;
+      }
+      
+      try {
+        const payload = {
+          faq_id: faqId,
+          feedback_type: 'rating',
+          content: rating + ' stars',
+          rating: parseInt(rating)
+        };
+        
+        const response = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('token')
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Rating saved successfully:', result);
+          alert(`Thank you for rating! Your rating of ${rating} star(s) has been saved.`);
+          // Keep the select element value and update display
+          if (selectElement) {
+            selectElement.value = rating;
+            // Force dropdown to show the selected value
+            for (let option of selectElement.options) {
+              option.selected = (option.value === rating);
+            }
+          }
+          // Update the rating display
+          const displayElement = document.getElementById(`rating-display-${faqId}`);
+          if (displayElement) {
+            displayElement.textContent = rating || 'Not rated';
+          }
+          // Update cache
+          searchCache.ratings[faqId] = parseInt(rating);
+        } else {
+          const err = await response.json();
+          console.error('Error response:', err);
+          alert('Failed to submit rating: ' + (err.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error submitting rating:', error);
+        alert('Error submitting rating: ' + error.message);
+      }
     }
 
     function debounce(func, wait) {
@@ -318,9 +526,140 @@
       };
     }
 
+    async function loadMyAnsweredQuestions() {
+      try {
+        const response = await fetch('/api/faq', {
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          displayMyAnsweredQuestions(data.faqs);
+        } else {
+          document.getElementById('my-answers-list').innerHTML = '<p class="muted">Error loading answered questions</p>';
+        }
+      } catch (error) {
+        console.error('Error loading answered questions:', error);
+        document.getElementById('my-answers-list').innerHTML = '<p class="muted">Error loading answered questions: ' + error.message + '</p>';
+      }
+    }
+
+    async function displayMyAnsweredQuestions(faqs) {
+      const container = document.getElementById('my-answers-list');
+      
+      // Filter to show only published questions asked by current user
+      const myAnsweredFaqs = faqs.filter(faq => faq.status === 'published' && faq.author_id === currentUser.id);
+      
+      if (myAnsweredFaqs.length === 0) {
+        container.innerHTML = '<p class="muted">No answered questions yet. Your answered questions will appear here.</p>';
+        return;
+      }
+      
+      // Fetch user ratings for all FAQs
+      const userRatings = {};
+      try {
+        for (const faq of myAnsweredFaqs) {
+          const response = await fetch(`/api/feedback?faq_id=${faq.id}&feedback_type=rating`, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            // Find current user's rating for this FAQ
+            const userRating = data.feedback.find(f => f.user_id === currentUser.id);
+            if (userRating) {
+              userRatings[faq.id] = userRating.rating;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user ratings:', error);
+      }
+      
+      container.innerHTML = myAnsweredFaqs.map((faq, index) => {
+        const userRating = userRatings[faq.id] ? String(userRatings[faq.id]) : '';
+        return `
+        <div class="search-result-item">
+          <div class="search-result-header" onclick="toggleAnswer(${index}, 'my-answers-list')">
+            <span class="expand-arrow">▶</span>
+            <span class="search-result-question">${faq.question}</span>
+            <div class="rating-container">
+              <select id="rating-select-my-${faq.id}" class="rating-dropdown" onclick="event.stopPropagation();" style="padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.9em;">
+                <option value="" ${userRating === '' ? 'selected' : ''}>Not rated</option>
+                <option value="1" ${userRating === '1' ? 'selected' : ''}>1</option>
+                <option value="2" ${userRating === '2' ? 'selected' : ''}>2</option>
+                <option value="3" ${userRating === '3' ? 'selected' : ''}>3</option>
+                <option value="4" ${userRating === '4' ? 'selected' : ''}>4</option>
+                <option value="5" ${userRating === '5' ? 'selected' : ''}>5</option>
+              </select>
+              <button onclick="const sel = document.getElementById('rating-select-my-${faq.id}'); submitRating(${faq.id}, sel.value, sel)" style="padding: 6px 10px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em;">Save</button>
+            </div>
+          </div>
+          <div class="search-result-answer" style="display: none;">
+            <div><strong>Answer:</strong> ${faq.answer}</div>
+            <div class="faq-meta">
+              <span>Answered: ${new Date(faq.updated_at || faq.created_at).toLocaleDateString()}</span>
+              <span>Category: ${faq.category_name || 'Uncategorized'}</span>
+            </div>
+          </div>
+        </div>
+      `}).join('');
+    }
+
     // Placeholder functions for FAQ management
     function createFAQ() {
       alert('Create FAQ functionality will be implemented');
+    }
+
+    async function submitQuestion(e) {
+      e.preventDefault();
+      const questionInput = document.getElementById('question-input');
+      const submitBtn = document.getElementById('submit-question-btn');
+      const submitMsg = document.getElementById('submit-msg');
+      const question = questionInput.value.trim();
+
+      if (!question) {
+        submitMsg.textContent = 'Please enter a question';
+        submitMsg.style.color = 'var(--error)';
+        submitMsg.style.display = 'block';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+      submitMsg.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/faq', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('token')
+          },
+          body: JSON.stringify({
+            question: question,
+            answer: 'Pending response',
+            category_id: 1,
+            status: 'draft'
+          })
+        });
+
+        if (response.status === 201 || response.ok) {
+          submitMsg.textContent = 'Question submitted successfully!';
+          submitMsg.style.color = 'var(--success)';
+          submitMsg.style.display = 'block';
+          questionInput.value = '';
+        } else {
+          const err = await response.json();
+          throw new Error(err.message || 'Failed to submit question');
+        }
+      } catch (error) {
+        submitMsg.textContent = 'Error: ' + error.message;
+        submitMsg.style.color = 'var(--error)';
+        submitMsg.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Question';
+      }
     }
 
     function viewFAQ(id) {
