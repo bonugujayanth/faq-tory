@@ -104,7 +104,7 @@ jobs:
 
       - name: 🔒 Security audit
         working-directory: ./src/backend
-        run: npm audit --audit-level=high --production || true
+        run: npm audit --audit-level=high --production
 
       - name: 📦 Create deployment package
         run: |
