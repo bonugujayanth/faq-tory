@@ -2,6 +2,8 @@ const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
 
+// Ensure test environment
+process.env.NODE_ENV = 'test';
 // Ensure test DB is isolated
 process.env.DB_PATH = path.join(__dirname, '..', 'data', 'test.db');
 process.env.JWT_SECRET = 'testsecret';
@@ -22,37 +24,48 @@ afterAll((done) => {
     const db = require('../models/db');
     if (db && typeof db.close === 'function') {
       db.close(() => {
-        try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
+        try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) { /* ignore cleanup errors */ }
         done();
       });
     } else {
-      try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
+      try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) { /* ignore cleanup errors */ }
       done();
     }
   } catch (e) {
-    try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) {}
+    try { if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); } catch (e) { /* ignore cleanup errors */ }
     done();
   }
 });
 
-// TODO: Re-enable after aligning signup/login behavior with tests (was failing with 400/401).
-describe.skip('Auth API', () => {
+describe('Auth API', () => {
   let token;
   let shortLivedToken;
 
+  beforeEach((done) => {
+    // Clean database before each test
+    const db = require('../models/db');
+    db.run('DELETE FROM users', () => {
+      db.run('DELETE FROM qa', () => {
+        done();
+      });
+    });
+  });
+
   test('signup valid -> 201', async () => {
-    const res = await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'pass' });
+    const res = await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'Test@123' });
     expect(res.statusCode).toBe(201);
     expect(res.body.user).toHaveProperty('id');
   });
 
   test('duplicate email -> 409', async () => {
-    const res = await request(app).post('/api/auth/signup').send({ name: 'Test2', email: 'a@a.com', password: 'pass' });
+    await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'Test@123' });
+    const res = await request(app).post('/api/auth/signup').send({ name: 'Test2', email: 'a@a.com', password: 'Test@123' });
     expect(res.statusCode).toBe(409);
   });
 
   test('login valid -> 200 + JWT', async () => {
-    const res = await request(app).post('/api/auth/login').send({ email: 'a@a.com', password: 'pass' });
+    await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'Test@123' });
+    const res = await request(app).post('/api/auth/login').send({ email: 'a@a.com', password: 'Test@123' });
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('token');
     token = res.body.token;
@@ -70,6 +83,7 @@ describe.skip('Auth API', () => {
   });
 
   test('login wrong password -> 401', async () => {
+    await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'Test@123' });
     const res = await request(app).post('/api/auth/login').send({ email: 'a@a.com', password: 'wrong' });
     expect(res.statusCode).toBe(401);
   });
@@ -80,17 +94,27 @@ describe.skip('Auth API', () => {
   });
 
   test('/me with valid token -> 200', async () => {
-    const res = await request(app).get('/api/auth/me').set('Authorization', 'Bearer ' + token);
+    await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'Test@123' });
+    const loginRes = await request(app).post('/api/auth/login').send({ email: 'a@a.com', password: 'Test@123' });
+    const testToken = loginRes.body.token;
+    
+    const res = await request(app).get('/api/auth/me').set('Authorization', 'Bearer ' + testToken);
     expect(res.statusCode).toBe(200);
     expect(res.body.user).toHaveProperty('email', 'a@a.com');
   });
 
   test('role-based access -> 403 for non-admin', async () => {
-    const res = await request(app).get('/api/auth/admin-check').set('Authorization', 'Bearer ' + token);
+    await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'Test@123' });
+    const loginRes = await request(app).post('/api/auth/login').send({ email: 'a@a.com', password: 'Test@123' });
+    const testToken = loginRes.body.token;
+    
+    const res = await request(app).get('/api/auth/admin-check').set('Authorization', 'Bearer ' + testToken);
     expect(res.statusCode).toBe(403);
   });
 
   test('request-reset -> ok and reset -> ok', async () => {
+    await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'Test@123' });
+    
     const resReq = await request(app).post('/api/auth/request-reset').send({ email: 'a@a.com' });
     expect(resReq.statusCode).toBe(200);
     expect(resReq.body.ok).toBe(true);
@@ -102,9 +126,13 @@ describe.skip('Auth API', () => {
   });
 
   test('logout -> token revoked', async () => {
-    const resLogout = await request(app).post('/api/auth/logout').set('Authorization', 'Bearer ' + token);
+    await request(app).post('/api/auth/signup').send({ name: 'Test', email: 'a@a.com', password: 'Test@123' });
+    const loginRes = await request(app).post('/api/auth/login').send({ email: 'a@a.com', password: 'Test@123' });
+    const testToken = loginRes.body.token;
+    
+    const resLogout = await request(app).post('/api/auth/logout').set('Authorization', 'Bearer ' + testToken);
     expect(resLogout.statusCode).toBe(200);
-    const resAfter = await request(app).get('/api/auth/me').set('Authorization', 'Bearer ' + token);
+    const resAfter = await request(app).get('/api/auth/me').set('Authorization', 'Bearer ' + testToken);
     expect(resAfter.statusCode).toBe(401);
   });
 });

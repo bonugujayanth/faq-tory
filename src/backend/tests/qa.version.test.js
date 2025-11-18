@@ -1,5 +1,6 @@
 const QA = require('../models/qa');
-const QAVersion = require('../models/qa_version');
+// eslint-disable-next-line no-unused-vars
+const _QAVersion = require('../models/qa_version');
 const { setupTestDatabase } = require('./setup');
 
 describe('QA Version Control Tests', () => {

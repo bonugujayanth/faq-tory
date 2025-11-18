@@ -39,10 +39,8 @@
     "dotenv": "^16.0.0",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "lunr": "^2.3.9",
     "multer": "^1.4.5-lts.1",
-    "sqlite3": "^5.1.6",
-    "xss": "^1.0.14"
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "eslint": "^8.57.1",
