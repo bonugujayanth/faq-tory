@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback Form</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f3f4f6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 350px;
+    }
+    input, textarea, button {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 15px;
+    }
+    button {
+      background-color: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    .message {
+      margin-top: 15px;
+      text-align: center;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Feedback Form</h2>
+    <input type="number" id="question_id" placeholder="Question ID" required>
+    <input type="text" id="user" placeholder="Your Name" required>
+    <textarea id="comment" placeholder="Your feedback..." required></textarea>
+    <input type="number" id="rating" placeholder="Rating (1-5)" min="1" max="5" required>
+    <button onclick="submitFeedback()">Submit Feedback</button>
+    <div class="message" id="message"></div>
+  </div>
+
+  <script>
+    async function submitFeedback() {
+      const data = {
+        question_id: document.getElementById("question_id").value,
+        user: document.getElementById("user").value,
+        comment: document.getElementById("comment").value,
+        rating: document.getElementById("rating").value
+      };
+
+      try {
+        const res = await fetch("http://localhost:3000/api/feedback/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+        document.getElementById("message").innerText = result.message || result.error;
+      } catch (error) {
+        document.getElementById("message").innerText = "⚠️ Error submitting feedback";
+      }
+    }
+  </script>
+</body>
+</html>
