@@ -1,15 +1,14 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const authRoutes = require('./routes/auth');
 const faqRoutes = require('./routes/faq');
 const adminRoutes = require('./routes/admin');
 const categoryRoutes = require('./routes/categories');
 const qaRoutes = require('./routes/qa');
-const searchRoutes = require('./routes/search');
-const feedbackRoutes = require('./routes/feedback');
-const db = require('./models/db');
-const path = require('path');
+// eslint-disable-next-line no-unused-vars
+const _db = require('./models/db');
 const http = require('http');
 const { errorHandler } = require('./middleware/error');
 
@@ -23,8 +22,6 @@ app.use('/api/faq', faqRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/qa', qaRoutes);
-app.use('/api/search', searchRoutes);
-app.use('/api/feedback', feedbackRoutes);
 
 // Basic root
 app.get('/', (req, res) => res.json({ message: 'Dynamic FAQ Builder API' }));

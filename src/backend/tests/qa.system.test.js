@@ -1,6 +1,7 @@
 const request = require('supertest');
 const app = require('../server');
-const QA = require('../models/qa');
+// eslint-disable-next-line no-unused-vars
+const _QA = require('../models/qa');
 const db = require('../models/db');
 const { setupTestDatabase } = require('./setup');
 

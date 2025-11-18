@@ -1,6 +1,7 @@
 const express = require('express');
 const FAQ = require('../models/faq');
-const { authenticateToken, requirePermission, requireAnyRole, logAudit } = require('../middleware/auth');
+// eslint-disable-next-line no-unused-vars
+const { authenticateToken, requireAnyRole, requirePermission, logAudit } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -33,13 +34,14 @@ router.get('/', authenticateToken, (req, res) => {
       `;
       
       const params = [req.user.id];
+      let sqlQuery = sql;
       if (filters.limit) {
-        sql += ' LIMIT ?';
+        sqlQuery += ' LIMIT ?';
         params.push(parseInt(filters.limit));
       }
       
       require('sqlite3').Database.prototype.all.call(
-        require('../models/db'), sql, params, (err, rows) => {
+        require('../models/db'), sqlQuery, params, (err, rows) => {
           if (err) return res.status(500).json({ message: 'Database error' });
           
           rows.forEach(row => {
