@@ -3,7 +3,9 @@ const sqlite3 = require('sqlite3');
 const fs = require('fs');
 require('dotenv').config();
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'app.db');
+// Use test database when running tests
+const isTest = process.env.NODE_ENV === 'test';
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', isTest ? 'test.db' : 'app.db');
 
 // Ensure directory exists
 const dbDir = path.dirname(DB_PATH);
