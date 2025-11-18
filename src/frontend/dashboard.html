@@ -44,6 +44,8 @@
     <div class="dashboard-nav">
       <button id="nav-overview" class="nav-button">Overview</button>
       <button id="nav-faqs" class="nav-button">FAQs</button>
+      <a href="qa.html" class="nav-button">Q/A Management</a>
+      <a href="feedback.html" class="nav-button">Feedback</a>
       <button id="nav-search" class="nav-button">Search</button>
       <button id="nav-admin" class="nav-button hidden">Admin Panel</button>
     </div>
@@ -262,13 +264,20 @@
       }
       
       try {
-        const response = await fetch(`/api/faq/search?q=${encodeURIComponent(query)}`, {
+        // Use localhost:3000 if opened as file://, otherwise use current origin
+        const API_BASE = (window && window.location && window.location.protocol === 'file:') 
+          ? 'http://localhost:3000' 
+          : (window && window.location && window.location.origin) ? window.location.origin : 'http://localhost:3000';
+        
+        const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`, {
           headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
         });
         
         if (response.ok) {
           const data = await response.json();
-          displaySearchResults(data.faqs);
+          displaySearchResults(data.results);
+        } else {
+          throw new Error('Search request failed');
         }
       } catch (error) {
         console.error('Error searching FAQs:', error);
@@ -276,22 +285,22 @@
       }
     }
 
-    function displaySearchResults(faqs) {
+    function displaySearchResults(results) {
       const container = document.getElementById('search-results');
       
-      if (faqs.length === 0) {
+      if (!results || results.length === 0) {
         container.innerHTML = '<p class="muted">No FAQs found matching your search</p>';
         return;
       }
       
-      container.innerHTML = faqs.map(faq => `
+      container.innerHTML = results.map(item => `
         <div class="faq-item">
-          <div class="faq-question">${faq.question}</div>
-          <div class="faq-answer">${faq.answer.substring(0, 150)}${faq.answer.length > 150 ? '...' : ''}</div>
+          <div class="faq-question">${item.question}</div>
+          <div class="faq-answer">${item.answer.substring(0, 150)}${item.answer.length > 150 ? '...' : ''}</div>
           <div class="faq-meta">
-            <span>Category: ${faq.category_name || 'Uncategorized'}</span>
-            <span>Relevance: ${faq.relevance_score}</span>
-            <span>Views: ${faq.view_count}</span>
+            <span>ID: ${item.id}</span>
+            <span>Relevance: ${item.score ? item.score.toFixed(2) : 'N/A'}</span>
+            <span>Created: ${new Date(item.created_at).toLocaleDateString()}</span>
           </div>
         </div>
       `).join('');
