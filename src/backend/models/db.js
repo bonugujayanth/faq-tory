@@ -96,11 +96,33 @@ CREATE TABLE IF NOT EXISTS audit_log (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+-- Feedback/Suggestions table for user feedback on FAQs
+CREATE TABLE IF NOT EXISTS feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  faq_id INTEGER NOT NULL,
+  user_id INTEGER,
+  user_name TEXT,
+  user_email TEXT,
+  feedback_type TEXT CHECK(feedback_type IN ('suggestion','correction','improvement','rating','other')) DEFAULT 'suggestion',
+  content TEXT NOT NULL,
+  rating INTEGER CHECK(rating >= 1 AND rating <= 5),
+  status TEXT CHECK(status IN ('pending','approved','rejected')) DEFAULT 'pending',
+  admin_notes TEXT,
+  reviewed_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (faq_id) REFERENCES faqs(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
 -- Indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_faqs_status ON faqs(status);
 CREATE INDEX IF NOT EXISTS idx_faqs_category ON faqs(category_id);
 CREATE INDEX IF NOT EXISTS idx_faqs_author ON faqs(author_id);
 CREATE INDEX IF NOT EXISTS idx_faqs_search ON faqs(question, answer);
+CREATE INDEX IF NOT EXISTS idx_feedback_faq ON feedback(faq_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status);
+CREATE INDEX IF NOT EXISTS idx_feedback_type ON feedback(feedback_type);
 CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_blacklist_expires ON token_blacklist(expires_at);
@@ -125,16 +147,24 @@ INSERT OR IGNORE INTO permissions (role, resource, action) VALUES
 ('admin', 'category', 'update'),
 ('admin', 'category', 'delete'),
 ('admin', 'audit', 'read'),
+('admin', 'feedback', 'create'),
+('admin', 'feedback', 'read'),
+('admin', 'feedback', 'update'),
+('admin', 'feedback', 'delete'),
 
 -- Editor permissions (limited CRUD)
 ('editor', 'faq', 'create'),
 ('editor', 'faq', 'read'),
 ('editor', 'faq', 'update'),
 ('editor', 'category', 'read'),
+('editor', 'feedback', 'read'),
+('editor', 'feedback', 'update'),
 
 -- Viewer permissions (read-only)
 ('viewer', 'faq', 'read'),
-('viewer', 'category', 'read');
+('viewer', 'category', 'read'),
+('viewer', 'feedback', 'create'),
+('viewer', 'feedback', 'read');
 `;
 
 // Insert default categories

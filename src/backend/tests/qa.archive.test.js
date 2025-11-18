@@ -1,6 +1,5 @@
 const QA = require('../models/qa');
-// eslint-disable-next-line no-unused-vars
-const _db = require('../models/db');
+const db = require('../models/db');
 const { setupTestDatabase } = require('./setup');
 
 describe('QA Archive Tests', () => {

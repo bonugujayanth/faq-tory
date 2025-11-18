@@ -1,54 +1,108 @@
-const LunrSearchEngine = require('./search/lunr_search_engine');
+const SearchEngineFactory = require('./search/search_engine_factory');
 
-// Default configuration for the search engine
-const defaultConfig = {
-  relevanceAlgorithm: 'bm25',
-  bm25: {
-    k1: 1.2,
-    b: 0.75
-  },
-  fieldWeights: {
-    question: 10,
-    answer: 5,
-    tags: 3
+/**
+ * SearchIndex - Facade for pluggable search engines
+ * Delegates to configured search engine (Lunr, Elasticsearch, Meilisearch, Solr)
+ */
+class SearchIndex {
+  static engine = null;
+
+  static async initialize() {
+    try {
+      if (!this.engine) {
+        this.engine = SearchEngineFactory.createEngine();
+      }
+      return await this.engine.initialize();
+    } catch (err) {
+      console.error('Failed to initialize search index:', err);
+      return false;
+    }
   }
-};
 
-// Create singleton instance
-const searchEngine = new LunrSearchEngine(defaultConfig);
-
-// Initialize the search engine on module load
-searchEngine.initialize().catch(err => {
-  console.error('Failed to initialize search engine:', err);
-});
-
-// Export wrapper methods
-module.exports = {
-  async search(query, filters = {}) {
-    return await searchEngine.search(query, filters);
-  },
-
-  async checkHealth() {
-    return await searchEngine.checkHealth();
-  },
-
-  async initialize() {
-    return await searchEngine.initialize();
-  },
-
-  async addDocument(document) {
-    return await searchEngine.addDocument(document);
-  },
-
-  async updateDocument(document) {
-    return await searchEngine.updateDocument(document);
-  },
-
-  async removeDocument(id) {
-    return await searchEngine.removeDocument(id);
-  },
-
-  async clear() {
-    return await searchEngine.clear();
+  static async addDocument(qaEntry) {
+    try {
+      if (!this.engine) {
+        await this.initialize();
+      }
+      return await this.engine.addDocument(qaEntry);
+    } catch (err) {
+      console.error('Failed to add document to index:', err);
+      return false;
+    }
   }
-};
+
+  static async updateDocument(qaEntry) {
+    try {
+      if (!this.engine) {
+        await this.initialize();
+      }
+      return await this.engine.updateDocument(qaEntry);
+    } catch (err) {
+      console.error('Failed to update document in index:', err);
+      return false;
+    }
+  }
+
+  static async removeDocument(id) {
+    try {
+      if (!this.engine) {
+        await this.initialize();
+      }
+      return await this.engine.removeDocument(id);
+    } catch (err) {
+      console.error('Failed to remove document from index:', err);
+      return false;
+    }
+  }
+
+  static async search(query, filters = {}) {
+    try {
+      if (!this.engine) {
+        await this.initialize();
+      }
+
+      // Normalize filter parameters for backward compatibility
+      const options = {
+        tags: filters.tags || [],
+        startDate: filters.createdAfter || filters.startDate,
+        endDate: filters.createdBefore || filters.endDate,
+        updatedStart: filters.updatedAfter || filters.updatedStart,
+        updatedEnd: filters.updatedBefore || filters.updatedEnd
+      };
+
+      return await this.engine.search(query, options);
+    } catch (err) {
+      console.error('Search failed:', err);
+      return [];
+    }
+  }
+
+  static async checkHealth() {
+    try {
+      if (!this.engine) {
+        await this.initialize();
+      }
+      return await this.engine.checkHealth();
+    } catch (err) {
+      return { 
+        ok: false, 
+        error: err.message,
+        message: 'Search index is not responding'
+      };
+    }
+  }
+
+  static async clear() {
+    try {
+      if (!this.engine) {
+        await this.initialize();
+      }
+      return await this.engine.clear();
+    } catch (err) {
+      console.error('Failed to clear search index:', err);
+      return false;
+    }
+  }
+}
+
+module.exports = SearchIndex;
