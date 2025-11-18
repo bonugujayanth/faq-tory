@@ -1,0 +1,313 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Admin Dashboard - Dynamic FAQ Builder</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .dashboard-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    .dashboard-content { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+    @media (max-width: 1024px) { .dashboard-content { grid-template-columns: 1fr; } }
+    .section-box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .section-box h2 { margin-top: 0; margin-bottom: 20px; color: #1f2937; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+    .faq-list { margin-top: 20px; }
+    .faq-item { padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 10px; background: #f9fafb; }
+    .faq-question { font-weight: 600; margin-bottom: 8px; color: #1f2937; }
+    .faq-answer { color: #6b7280; font-size: 0.9em; margin-bottom: 10px; line-height: 1.5; }
+    .faq-meta { display: flex; gap: 15px; font-size: 0.8em; color: #9ca3af; margin-top: 8px; }
+    .faq-actions { margin-top: 12px; }
+    .btn-small { padding: 6px 12px; font-size: 0.85em; margin-right: 5px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .btn-small:hover { opacity: 0.9; }
+    .nav-button { padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; }
+    .nav-button:hover { opacity: 0.9; }
+    .nav-button.secondary { background: #6b7280; }
+    .role-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 600; background: #fef3c7; color: #92400e; }
+    .muted { color: #9ca3af; font-style: italic; }
+    .empty-state { text-align: center; padding: 40px 20px; color: #9ca3af; }
+    .empty-state-icon { font-size: 2em; margin-bottom: 10px; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.active { display: flex; }
+    .modal-content { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+    .modal-header { margin-bottom: 20px; }
+    .modal-header h2 { margin: 0 0 10px 0; color: #1f2937; }
+    .modal-body { margin-bottom: 20px; }
+    .modal-label { display: block; margin-bottom: 8px; font-weight: 600; color: #374151; }
+    .modal-textarea { width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: inherit; font-size: 1em; resize: vertical; min-height: 150px; }
+    .modal-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1); }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .modal-btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .modal-btn-primary { background: var(--accent); color: white; }
+    .modal-btn-primary:hover { opacity: 0.9; }
+    .modal-btn-secondary { background: #e5e7eb; color: #374151; }
+    .modal-btn-secondary:hover { background: #d1d5db; }
+    .question-preview { background: #f9fafb; padding: 12px; border-radius: 8px; border-left: 4px solid var(--accent); margin-bottom: 15px; }
+    .question-preview-title { font-size: 0.85em; color: #9ca3af; margin-bottom: 5px; }
+    .question-preview-text { color: #1f2937; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <div class="dashboard-header">
+      <h1 id="welcome">Admin Dashboard</h1>
+      <div>
+        <span id="role-badge" class="role-badge">ADMIN</span>
+        <button id="logout" class="nav-button secondary" style="margin-left: 15px;">Logout</button>
+      </div>
+    </div>
+
+    <div class="dashboard-content">
+      <!-- Pending Questions Section -->
+      <div class="section-box">
+        <h2>📋 Pending Questions</h2>
+        <div class="faq-list" id="pending-list">
+          <div class="empty-state">
+            <p class="muted">Loading questions...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Answered Questions Section -->
+      <div class="section-box">
+        <h2>✅ Answered Questions</h2>
+        <div class="faq-list" id="answered-list">
+          <div class="empty-state">
+            <p class="muted">Loading answered questions...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Answer Modal -->
+  <div id="answerModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Answer Question</h2>
+      </div>
+      <div class="modal-body">
+        <div class="question-preview">
+          <div class="question-preview-title">Question:</div>
+          <div class="question-preview-text" id="modalQuestion"></div>
+        </div>
+        <label class="modal-label">Your Answer:</label>
+        <textarea id="answerText" class="modal-textarea" placeholder="Type your answer here..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-secondary" onclick="closeAnswerModal()">Cancel</button>
+        <button class="modal-btn modal-btn-primary" onclick="submitAnswer()">Submit Answer</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script>
+    let currentUser = null;
+    let currentQuestionId = null;
+
+    async function init() {
+      const token = localStorage.getItem('token');
+      if (!token) return window.location.href = '/login.html';
+      
+      const me = await meReq(token);
+      if (!me || !me.user || me.user.role !== 'admin') {
+        localStorage.removeItem('token');
+        return window.location.href = '/login.html';
+      }
+      
+      currentUser = me.user;
+      document.getElementById('welcome').textContent = `Welcome, ${currentUser.name}`;
+      
+      setupEventListeners();
+      loadAllFAQs();
+    }
+
+    function setupEventListeners() {
+      document.getElementById('logout').addEventListener('click', () => {
+        localStorage.removeItem('token');
+        window.location.href = '/login.html';
+      });
+    }
+
+    async function loadAllFAQs() {
+      try {
+        const response = await fetch('/api/faq', {
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          displayPendingQuestions(data.faqs);
+          displayAnsweredQuestions(data.faqs);
+        }
+      } catch (error) {
+        console.error('Error loading FAQs:', error);
+        document.getElementById('pending-list').innerHTML = '<p class="muted">Error loading questions</p>';
+        document.getElementById('answered-list').innerHTML = '<p class="muted">Error loading answered questions</p>';
+      }
+    }
+
+    function displayPendingQuestions(faqs) {
+      const container = document.getElementById('pending-list');
+      const draftFaqs = faqs.filter(faq => faq.status === 'draft');
+      
+      if (draftFaqs.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p class="muted">No pending questions</p></div>';
+        return;
+      }
+      
+      container.innerHTML = draftFaqs.map(faq => `
+        <div class="faq-item">
+          <div class="faq-question">${faq.question}</div>
+          <div class="faq-meta">
+            <span>By: ${faq.author_name}</span>
+            <span>Created: ${new Date(faq.created_at).toLocaleDateString()}</span>
+          </div>
+          <div class="faq-actions">
+            <button class="btn-small" onclick="answerQuestion(${faq.id}, '${faq.question.replace(/'/g, "\\'")}')">Answer Question</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function displayAnsweredQuestions(faqs) {
+      const container = document.getElementById('answered-list');
+      const publishedFaqs = faqs.filter(faq => faq.status === 'published');
+      
+      if (publishedFaqs.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p class="muted">No answered questions yet</p></div>';
+        return;
+      }
+      
+      // Fetch ratings for all answered FAQs
+      const ratings = {};
+      const averageRatings = {};
+      
+      try {
+        for (const faq of publishedFaqs) {
+          const response = await fetch(`/api/feedback?faq_id=${faq.id}&feedback_type=rating`, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            // Get all ratings for this FAQ
+            if (data.feedback && data.feedback.length > 0) {
+              const feedbackRatings = data.feedback.filter(f => f.rating);
+              if (feedbackRatings.length > 0) {
+                const avgRating = (feedbackRatings.reduce((sum, f) => sum + f.rating, 0) / feedbackRatings.length).toFixed(1);
+                averageRatings[faq.id] = {
+                  average: avgRating,
+                  total: feedbackRatings.length
+                };
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching ratings:', error);
+      }
+      
+      container.innerHTML = publishedFaqs.map(faq => {
+        const ratingInfo = averageRatings[faq.id];
+        const ratingDisplay = ratingInfo 
+          ? `<span>⭐ Average: ${ratingInfo.average} (${ratingInfo.total} rating${ratingInfo.total !== 1 ? 's' : ''})</span>`
+          : '<span>No ratings yet</span>';
+        
+        return `
+        <div class="faq-item">
+          <div class="faq-question">${faq.question}</div>
+          <div class="faq-answer"><strong>Answer:</strong> ${faq.answer}</div>
+          <div class="faq-meta">
+            <span>By: ${faq.author_name}</span>
+            <span>Answered: ${new Date(faq.updated_at || faq.created_at).toLocaleDateString()}</span>
+            ${ratingDisplay}
+          </div>
+          <div class="faq-actions">
+            <button class="btn-small" onclick="deleteFAQ(${faq.id})" style="background: #ef4444;">Delete</button>
+          </div>
+        </div>
+      `}).join('');
+    }
+
+    function answerQuestion(id, question) {
+      currentQuestionId = id;
+      document.getElementById('modalQuestion').textContent = question;
+      document.getElementById('answerText').value = '';
+      document.getElementById('answerModal').classList.add('active');
+      document.getElementById('answerText').focus();
+    }
+
+    function closeAnswerModal() {
+      document.getElementById('answerModal').classList.remove('active');
+      currentQuestionId = null;
+    }
+
+    function submitAnswer() {
+      const answer = document.getElementById('answerText').value.trim();
+      if (!answer) {
+        alert('Please write an answer before submitting');
+        return;
+      }
+      updateFAQAnswer(currentQuestionId, answer);
+    }
+
+    async function updateFAQAnswer(id, answer) {
+      try {
+        const response = await fetch(`/api/faq/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('token')
+          },
+          body: JSON.stringify({
+            answer: answer,
+            status: 'published'
+          })
+        });
+
+        if (response.ok) {
+          alert('Question answered successfully!');
+          closeAnswerModal();
+          await new Promise(resolve => setTimeout(resolve, 500));
+          loadAllFAQs();
+        } else {
+          const err = await response.json();
+          alert('Failed to answer question: ' + (err.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error updating FAQ:', error);
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function deleteFAQ(id) {
+      if (!confirm('Are you sure you want to delete this question and answer?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/faq/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('token')
+          }
+        });
+
+        if (response.ok) {
+          alert('Question and answer deleted successfully!');
+          loadAllFAQs();
+        } else {
+          const err = await response.json();
+          alert('Failed to delete question: ' + (err.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error deleting FAQ:', error);
+        alert('Error: ' + error.message);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

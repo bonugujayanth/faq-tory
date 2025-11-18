@@ -160,8 +160,9 @@ INSERT OR IGNORE INTO permissions (role, resource, action) VALUES
 ('editor', 'feedback', 'read'),
 ('editor', 'feedback', 'update'),
 
--- Viewer permissions (read-only)
+-- Viewer permissions (read-only + can submit questions)
 ('viewer', 'faq', 'read'),
+('viewer', 'faq', 'create'),
 ('viewer', 'category', 'read'),
 ('viewer', 'feedback', 'create'),
 ('viewer', 'feedback', 'read');

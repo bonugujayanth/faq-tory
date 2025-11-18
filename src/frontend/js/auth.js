@@ -18,6 +18,21 @@ async function signup(data) {
   }
 }
 
+async function signupAdmin(data) {
+  try {
+    const res = await fetch(API_BASE + '/api/auth/signup-admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (res.status === 201) return { ok: true };
+    const body = await res.json();
+    return { ok: false, error: body.message || body.error };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 async function login(data) {
   try {
     const res = await fetch(API_BASE + '/api/auth/login', {
@@ -42,4 +57,4 @@ async function meReq(token) {
   }
 }
 
-if (typeof module !== 'undefined') module.exports = { signup, login, meReq }; 
+if (typeof module !== 'undefined') module.exports = { signup, signupAdmin, login, meReq }; 

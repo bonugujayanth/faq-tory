@@ -180,6 +180,17 @@ html, body {
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Split layout for dual auth (user/admin) */
+.auth-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 420px));
+  gap: 24px;
+  width: 100%;
+  align-items: start;
+  justify-content: center;
+  overflow-x: auto;
+}
+
 /* General styles */
 .container { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
 .card { background: var(--card); padding: 28px; border-radius: 12px; box-shadow: 0 6px 18px rgba(15,23,42,0.08); width: 100%; max-width: 420px; }

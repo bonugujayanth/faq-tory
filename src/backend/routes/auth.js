@@ -21,7 +21,7 @@ function isStrongPassword(pw) {
   return lengthOk && upper && lower && number && symbol;
 }
 
-// Signup
+// Signup (viewer by default)
 router.post('/signup', async (req, res) => {
   const { name, email, password } = req.body || {};
   if (!name || !email || !password) return res.status(400).json({ message: 'Missing fields' });
@@ -38,6 +38,59 @@ router.post('/signup', async (req, res) => {
       }
       const user = { id: this.lastID, name, email, role: 'viewer' };
       res.status(201).json({ user });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin signup — allowed when:
+// 1) No admin exists yet (bootstrap), OR
+// 2) ADMIN_INVITE_CODE is set and provided correctly in request body { invite }
+router.post('/signup-admin', async (req, res) => {
+  const { name, email, password, invite } = req.body || {};
+  if (!name || !email || !password) return res.status(400).json({ message: 'Missing fields' });
+  if (!isStrongPassword(password)) return res.status(400).json({ message: 'Weak password: min 8 chars incl upper, lower, number, symbol' });
+
+  const ADMIN_INVITE_CODE = process.env.ADMIN_INVITE_CODE || 'admin';
+
+  try {
+    // Check if an admin already exists
+    const countSql = `SELECT COUNT(*) as cnt FROM users WHERE role = 'admin'`;
+    db.get(countSql, [], async (err, row) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: 'DB error' });
+      }
+
+      const hasAdmin = (row && row.cnt > 0);
+      if (hasAdmin) {
+        if (!ADMIN_INVITE_CODE) {
+          return res.status(403).json({ message: 'Admin sign-up disabled. Ask an admin to create your account.' });
+        }
+        if (invite !== ADMIN_INVITE_CODE) {
+          return res.status(401).json({ message: 'Invalid admin invite code' });
+        }
+      }
+
+      // Proceed to create admin
+      try {
+        const hashed = await bcrypt.hash(password, SALT_ROUNDS);
+        const sql = `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'admin')`;
+        db.run(sql, [name, email, hashed], function (e2) {
+          if (e2) {
+            if (e2.code === 'SQLITE_CONSTRAINT') return res.status(409).json({ message: 'Email already exists' });
+            console.error(e2);
+            return res.status(500).json({ message: 'DB error' });
+          }
+          const user = { id: this.lastID, name, email, role: 'admin' };
+          return res.status(201).json({ user });
+        });
+      } catch (e3) {
+        console.error(e3);
+        return res.status(500).json({ message: 'Server error' });
+      }
     });
   } catch (err) {
     console.error(err);
