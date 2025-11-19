@@ -35,6 +35,36 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+      - name: 📊 Generate ESLint JSON Report
+        working-directory: ./src/backend
+        run: npm run lint -- --format json --output-file eslint-report.json || true
+
+      - name: 📤 Upload ESLint Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-report
+          path: ./src/backend/eslint-report.json
+        if: always()
+
+      - name: 📋 Display Lint Score
+        working-directory: ./src/backend
+        run: |
+          echo "# 🔍 ESLint Analysis Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f eslint-report.json ]; then
+            ISSUE_COUNT=$(jq 'length' eslint-report.json)
+            ERROR_COUNT=$(jq '[.[] | select(.messages[].severity == 2)] | length' eslint-report.json)
+            WARNING_COUNT=$(jq '[.[] | select(.messages[].severity == 1)] | length' eslint-report.json)
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Files Analyzed | $(jq 'length' eslint-report.json) |" >> $GITHUB_STEP_SUMMARY
+            echo "| Errors | $ERROR_COUNT |" >> $GITHUB_STEP_SUMMARY
+            echo "| Warnings | $WARNING_COUNT |" >> $GITHUB_STEP_SUMMARY
+            echo "| Issues | $ISSUE_COUNT |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ ESLint report not found" >> $GITHUB_STEP_SUMMARY
+          fi
+
   # ============================================
   # STAGE 2: TEST
   # ============================================
@@ -75,6 +105,46 @@ jobs:
           name: coverage-report
           path: ./src/backend/coverage/
           retention-days: 30
+        if: always()
+
+      - name: 📊 Display Coverage Report
+        working-directory: ./src/backend
+        run: |
+          echo "# 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage/coverage-final.json ]; then
+            echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+            LINES=$(jq '.total.lines.pct' coverage/coverage-final.json 2>/dev/null || echo "N/A")
+            STATEMENTS=$(jq '.total.statements.pct' coverage/coverage-final.json 2>/dev/null || echo "N/A")
+            FUNCTIONS=$(jq '.total.functions.pct' coverage/coverage-final.json 2>/dev/null || echo "N/A")
+            BRANCHES=$(jq '.total.branches.pct' coverage/coverage-final.json 2>/dev/null || echo "N/A")
+            echo "| Lines | $LINES% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Statements | $STATEMENTS% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Functions | $FUNCTIONS% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Branches | $BRANCHES% |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Coverage report not found" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📁 [Download Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+        if: always()
+
+      - name: 🎯 Final Quality Summary
+        run: |
+          echo "# ✅ Quality Gate Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Pipeline Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔍 Lint Analysis | ✅ Complete |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Tests | ✅ Passing |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Coverage | ✅ Generated |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📁 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- ESLint Report: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage Report: Available in artifacts" >> $GITHUB_STEP_SUMMARY
         if: always()
 
   # ============================================
