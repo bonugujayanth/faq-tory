@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">1.76% </span>
+                <span class="strong">15.04% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>2/113</span>
+                <span class='fraction'>17/113</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">7.81% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/64</span>
+                <span class='fraction'>5/64</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">13.63% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/22</span>
+                <span class='fraction'>3/22</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">1.92% </span>
+                <span class="strong">16.34% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>2/104</span>
+                <span class='fraction'>17/104</span>
             </div>
         
             
@@ -318,7 +318,7 @@
 <a name='L253'></a><a href='#L253'>253</a>
 <a name='L254'></a><a href='#L254'>254</a>
 <a name='L255'></a><a href='#L255'>255</a>
-<a name='L256'></a><a href='#L256'>256</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">10x</span>
+<a name='L256'></a><a href='#L256'>256</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -422,34 +422,34 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -572,7 +572,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">const db = require('./db');
 &nbsp;
 class FAQ {
@@ -676,35 +676,35 @@ class FAQ {
   }
 &nbsp;
   // Update FAQ
-<span class="fstat-no" title="function not covered" >  st</span>atic update(id, updateData, callback) {
-    const fields = <span class="cstat-no" title="statement not covered" >[];</span>
-    const values = <span class="cstat-no" title="statement not covered" >[];</span>
+  static update(id, updateData, callback) {
+    const fields = [];
+    const values = [];
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    Object.keys(updateData).forEach(<span class="fstat-no" title="function not covered" >ke</span>y =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      if (key === 'tags') {</span>
+    Object.keys(updateData).forEach(key =&gt; {
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (key === 'tags') {
 <span class="cstat-no" title="statement not covered" >        fields.push(`${key} = ?`);</span>
 <span class="cstat-no" title="statement not covered" >        values.push(JSON.stringify(updateData[key] || []));</span>
-      } else <span class="cstat-no" title="statement not covered" >if (key !== 'id') {</span>
-<span class="cstat-no" title="statement not covered" >        fields.push(`${key} = ?`);</span>
-<span class="cstat-no" title="statement not covered" >        values.push(updateData[key]);</span>
+      } else <span class="missing-if-branch" title="else path not taken" >E</span>if (key !== 'id') {
+        fields.push(`${key} = ?`);
+        values.push(updateData[key]);
       }
     });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    if (fields.length === 0) {</span>
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (fields.length === 0) {
 <span class="cstat-no" title="statement not covered" >      return callback(new Error('No fields to update'));</span>
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    fields.push('updated_at = CURRENT_TIMESTAMP');</span>
-<span class="cstat-no" title="statement not covered" >    values.push(id);</span>
+    fields.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
 &nbsp;
-    const sql = <span class="cstat-no" title="statement not covered" >`UPDATE faqs SET ${fields.join(', ')} WHERE id = ?`;</span>
+    const sql = `UPDATE faqs SET ${fields.join(', ')} WHERE id = ?`;
     
-<span class="cstat-no" title="statement not covered" >    db.run(sql, values, <span class="fstat-no" title="function not covered" >fu</span>nction(err) {</span>
-<span class="cstat-no" title="statement not covered" >      if (err) <span class="cstat-no" title="statement not covered" >return callback(err);</span></span>
-<span class="cstat-no" title="statement not covered" >      if (this.changes === 0) {</span>
+    db.run(sql, values, function(err) {
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (err) <span class="cstat-no" title="statement not covered" >return callback(err);</span>
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (this.changes === 0) {
 <span class="cstat-no" title="statement not covered" >        return callback(new Error('FAQ not found'));</span>
       }
-<span class="cstat-no" title="statement not covered" >      callback(null, { id, changes: this.changes });</span>
+      callback(null, { id, changes: this.changes });
     });
   }
 &nbsp;
@@ -835,7 +835,7 @@ module.exports = FAQ;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-16T05:51:48.095Z
+                at 2025-11-20T09:21:15.648Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

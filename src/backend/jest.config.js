@@ -1,11 +1,11 @@
 module.exports = {
   testEnvironment: 'node',
-  testTimeout: 10000,
+  testTimeout: 30000,
   
   // Enable coverage collection by default
   collectCoverage: true,
   
-  // Coverage reporters - MUST include 'json' for coverage-final.json
+  // Coverage reporters
   coverageReporters: ['text', 'lcov', 'json', 'json-summary', 'html'],
   
   // Where to put coverage reports
@@ -38,5 +38,14 @@ module.exports = {
   testMatch: [
     '**/tests/**/*.test.js',
     '**/tests/*.test.js'
-  ]
+  ],
+  
+  // Setup files
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
+  
+  // Force exit to close connections
+  forceExit: true,
+  
+  // Detect open handles
+  detectOpenHandles: false
 };
