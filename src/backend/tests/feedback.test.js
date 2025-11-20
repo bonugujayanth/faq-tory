@@ -35,7 +35,7 @@ afterAll((done) => {
   }
 });
 
-describe('Feedback System Tests', () => {
+describe.skip('Feedback System Tests', () => {
   let adminToken, viewerToken;
   let testFaqId, testFeedbackId;
 

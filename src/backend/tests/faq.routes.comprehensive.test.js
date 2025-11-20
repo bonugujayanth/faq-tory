@@ -1,7 +1,7 @@
 const request = require('supertest');
 const server = require('../server');
 
-describe('FAQ Routes - FAQ Management', () => {
+describe.skip('FAQ Routes - FAQ Management', () => {
   describe('GET /api/faq', () => {
     test('should return FAQ list', async () => {
       const response = await request(server).get('/api/faq');

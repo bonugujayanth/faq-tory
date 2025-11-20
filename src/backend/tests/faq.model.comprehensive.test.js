@@ -1,6 +1,6 @@
-const FAQ = require('../models/faq');
+// const FAQ = require('../models/faq');
 
-describe.skip('FAQ Model - FAQ Operations', () => {
+describe.skip('FAQ Model - FAQ Operations (disabled - faq model removed)', () => {
   
   describe('FAQ.create', () => {
     test('should create a new FAQ', (done) => {

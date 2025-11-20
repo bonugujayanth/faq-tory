@@ -1,8 +1,8 @@
 const express = require('express');
-const cors = require('cors');
+const cors = require('express');
 const qaRoutes = require('./routes/qa');
 const searchRoutes = require('./routes/search');
-const feedbackRoutes = require('./routes/feedback');
+// const feedbackRoutes = require('./routes/feedback');
 const { authenticateToken } = require('./middleware/auth');
 
 const app = express();
@@ -14,7 +14,7 @@ app.use(express.json());
 // Routes
 app.use('/api/qa', authenticateToken, qaRoutes);
 app.use('/api/search', searchRoutes);
-app.use('/api/feedback', feedbackRoutes);
+// app.use('/api/feedback', feedbackRoutes);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
