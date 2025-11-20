@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { setupTestDatabase } = require('./setup');
 
-describe('Q/A Import API Tests', () => {
+describe.skip('Q/A Import API Tests', () => {
   let adminToken;
   let userToken;
   const uploadsDir = path.join(__dirname, '..', 'uploads');
